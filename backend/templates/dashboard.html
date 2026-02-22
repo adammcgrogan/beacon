@@ -2,7 +2,8 @@
     <h1>Server Overview</h1>
     <div style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; width: 300px;">
         <h3>Status: <span style="color: #b5cea8;">{{.Status}}</span></h3>
-        <h3>Players Online: <span style="color: #569cd6;">{{.Players}}</span></h3>
-        <p style="color: #888; font-size: 0.9em;">(We can wire the Java plugin to send this data to Go later!)</p>
+        <h3>Players: <span style="color: #569cd6;">{{.Stats.Players}} / {{.Stats.MaxPlayers}}</span></h3>
+        <h3>TPS: <span style="color: #dcdcaa;">{{.Stats.TPS}}</span></h3>
+        <h3>RAM: <span style="color: #ce9178;">{{.Stats.RamUsed}}MB / {{.Stats.RamMax}}MB</span></h3>
     </div>
 {{end}}

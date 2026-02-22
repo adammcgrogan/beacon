@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -14,57 +15,65 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-// Pre-compile our Go templates so they are fast to serve
 var tmpl = template.Must(template.ParseGlob("templates/*.html"))
 
+// NEW: A struct to hold the latest server health data
+type ServerStats struct {
+	Players    int    `json:"players"`
+	MaxPlayers int    `json:"max_players"`
+	TPS        string `json:"tps"`
+	RamUsed    int64  `json:"ram_used"`
+	RamMax     int64  `json:"ram_max"`
+}
+
 type DashboardServer struct {
-	webClients map[*websocket.Conn]bool
-	mutex      sync.Mutex
+	webClients  map[*websocket.Conn]bool
+	clientsLock sync.Mutex
+
+	// NEW: Store the latest stats safely
+	latestStats ServerStats
+	statsLock   sync.Mutex
 }
 
 func NewDashboardServer() *DashboardServer {
 	return &DashboardServer{
 		webClients: make(map[*websocket.Conn]bool),
+		// Set some default stats for before the server connects
+		latestStats: ServerStats{TPS: "0.00"},
 	}
 }
 
 func main() {
 	server := NewDashboardServer()
 
-	// Page Routes
 	http.HandleFunc("/", server.HandleDashboard)
 	http.HandleFunc("/console", server.HandleConsole)
-
-	// WebSocket Routes
 	http.HandleFunc("/ws", server.HandleMinecraftWebSocket)
 	http.HandleFunc("/ws/web", server.HandleWebWebSocket)
 
-	fmt.Println("🚀 Beacon Backend running on http://localhost:8080")
+	fmt.Println("🚀 MCDash Backend running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// --- Page Handlers ---
-
 func (s *DashboardServer) HandleDashboard(w http.ResponseWriter, r *http.Request) {
-	// We can pass data from Go directly into the HTML!
+	s.statsLock.Lock()
+	currentStats := s.latestStats
+	s.statsLock.Unlock()
+
+	// NEW: Pass the real stats to the HTML!
 	data := map[string]interface{}{
 		"Title":     "Overview",
 		"ActiveTab": "dashboard",
 		"Status":    "Online",
-		"Players":   0, // We can wire this up to the Java plugin later!
+		"Stats":     currentStats,
 	}
 	tmpl.ExecuteTemplate(w, "base", data)
 }
 
 func (s *DashboardServer) HandleConsole(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
-		"Title":     "Live Console",
-		"ActiveTab": "console",
-	}
+	data := map[string]interface{}{"Title": "Live Console", "ActiveTab": "console"}
 	tmpl.ExecuteTemplate(w, "base", data)
 }
-
-// --- WebSocket Handlers (Unchanged) ---
 
 func (s *DashboardServer) HandleMinecraftWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -74,11 +83,32 @@ func (s *DashboardServer) HandleMinecraftWebSocket(w http.ResponseWriter, r *htt
 	defer conn.Close()
 
 	fmt.Println("🟢 Minecraft Server Connected!")
+
 	for {
 		_, messageBytes, err := conn.ReadMessage()
 		if err != nil {
 			break
 		}
+
+		// NEW: Inspect the JSON to see if it's a stats update
+		var incoming map[string]interface{}
+		if err := json.Unmarshal(messageBytes, &incoming); err == nil {
+			if event, ok := incoming["event"].(string); ok && event == "server_stats" {
+
+				// Parse the payload and update our Go memory
+				if payload, ok := incoming["payload"].(map[string]interface{}); ok {
+					s.statsLock.Lock()
+					s.latestStats.Players = int(payload["players"].(float64))
+					s.latestStats.MaxPlayers = int(payload["max_players"].(float64))
+					s.latestStats.TPS = payload["tps"].(string)
+					s.latestStats.RamUsed = int64(payload["ram_used"].(float64))
+					s.latestStats.RamMax = int64(payload["ram_max"].(float64))
+					s.statsLock.Unlock()
+				}
+			}
+		}
+
+		// Always broadcast everything to the web clients (for the live console)
 		s.broadcastToWebClients(messageBytes)
 	}
 }
@@ -103,20 +133,20 @@ func (s *DashboardServer) HandleWebWebSocket(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *DashboardServer) addWebClient(conn *websocket.Conn) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.clientsLock.Lock()
+	defer s.clientsLock.Unlock()
 	s.webClients[conn] = true
 }
 
 func (s *DashboardServer) removeWebClient(conn *websocket.Conn) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.clientsLock.Lock()
+	defer s.clientsLock.Unlock()
 	delete(s.webClients, conn)
 }
 
 func (s *DashboardServer) broadcastToWebClients(message []byte) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.clientsLock.Lock()
+	defer s.clientsLock.Unlock()
 	for client := range s.webClients {
 		if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
 			client.Close()

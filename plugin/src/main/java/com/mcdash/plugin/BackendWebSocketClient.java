@@ -3,6 +3,7 @@ package com.mcdash.plugin;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import java.net.URI;
+import org.bukkit.Bukkit;
 
 public class BackendWebSocketClient extends WebSocketClient {
     
@@ -28,6 +29,9 @@ public class BackendWebSocketClient extends WebSocketClient {
     public void onOpen(ServerHandshake handshakedata) {
         plugin.getLogger().info("✅ Connected successfully to Go Backend!");
         plugin.startLogCapture();
+
+        ServerStatsTask statsTask = new ServerStatsTask(this);
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, statsTask, 0L, 40L);
     }
 
     /**
