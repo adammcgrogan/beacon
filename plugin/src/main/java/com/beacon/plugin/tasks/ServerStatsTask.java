@@ -1,23 +1,25 @@
 package com.beacon.plugin.tasks;
 
-import com.beacon.plugin.util.ProtocolBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.bukkit.Bukkit;
+import org.bukkit.Statistic; // Added for playtime
 import org.bukkit.entity.Player;
 import org.java_websocket.client.WebSocketClient;
 
 public class ServerStatsTask implements Runnable {
 
-    private final WebSocketClient client;
+    private final WebSocketClient webSocketClient;
 
-    public ServerStatsTask(WebSocketClient client) {
-        this.client = client;
+    public ServerStatsTask(WebSocketClient webSocketClient) {
+        this.webSocketClient = webSocketClient;
     }
 
     @Override
     public void run() {
-        if (client == null || !client.isOpen()) return;
+        if (webSocketClient == null || !webSocketClient.isOpen()) {
+            return;
+        }
 
         JsonObject payload = new JsonObject();
         payload.addProperty("players", Bukkit.getOnlinePlayers().size());
@@ -27,21 +29,27 @@ public class ServerStatsTask implements Runnable {
         Runtime runtime = Runtime.getRuntime();
         payload.addProperty("ram_used", (runtime.totalMemory() - runtime.freeMemory()) / 1048576L);
         payload.addProperty("ram_max", runtime.maxMemory() / 1048576L);
-        
-        payload.add("player_list", buildPlayerList());
 
-        client.send(ProtocolBuilder.buildEvent("server_stats", payload));
-    }
-
-    private JsonArray buildPlayerList() {
         JsonArray playerArray = new JsonArray();
         for (Player p : Bukkit.getOnlinePlayers()) {
-            JsonObject player = new JsonObject();
-            player.addProperty("name", p.getName());
-            player.addProperty("uuid", p.getUniqueId().toString());
-            player.addProperty("ping", p.getPing()); 
-            playerArray.add(player);
+            JsonObject playerObj = new JsonObject();
+            playerObj.addProperty("name", p.getName());
+            playerObj.addProperty("uuid", p.getUniqueId().toString());
+            playerObj.addProperty("ping", p.getPing()); 
+            
+            playerObj.addProperty("first_join", p.getFirstPlayed()); // Timestamp in ms
+            playerObj.addProperty("playtime", p.getStatistic(Statistic.PLAY_ONE_MINUTE)); 
+            playerObj.addProperty("world", p.getWorld().getName());
+
+            playerArray.add(playerObj);
         }
-        return playerArray;
+        
+        payload.add("player_list", playerArray);
+
+        JsonObject rootJson = new JsonObject();
+        rootJson.addProperty("event", "server_stats");
+        rootJson.add("payload", payload);
+
+        webSocketClient.send(rootJson.toString());
     }
 }

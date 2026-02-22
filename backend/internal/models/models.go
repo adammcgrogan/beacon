@@ -10,7 +10,10 @@ type ServerStats struct {
 }
 
 type PlayerInfo struct {
-	Name string `json:"name"`
-	UUID string `json:"uuid"`
-	Ping int    `json:"ping"`
+	Name      string `json:"name"`
+	UUID      string `json:"uuid"`
+	Ping      int    `json:"ping"`
+	FirstJoin int64  `json:"first_join"`
+	Playtime  int    `json:"playtime"`
+	World     string `json:"world"`
 }
