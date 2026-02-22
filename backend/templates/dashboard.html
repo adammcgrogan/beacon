@@ -1,21 +1,59 @@
 {{define "dashboard"}}
-    <h1>Server Overview</h1>
-    <div style="background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; width: 300px;">
-        <h3>Status: <span style="color: #b5cea8;">Online</span></h3>
-        <h3>Players: <span id="stat-players" style="color: #569cd6;">{{.Stats.Players}} / {{.Stats.MaxPlayers}}</span></h3>
-        <h3>TPS: <span id="stat-tps" style="color: #dcdcaa;">{{.Stats.TPS}}</span></h3>
-        <h3>RAM: <span id="stat-ram" style="color: #ce9178;">{{.Stats.RamUsed}}MB / {{.Stats.RamMax}}MB</span></h3>
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-white">System Overview</h1>
+        <p class="text-zinc-500 text-sm">Real-time health and performance metrics.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div class="bg-[#18181b] border border-zinc-800 p-6 rounded-xl shadow-sm">
+            <div class="text-zinc-500 text-xs font-medium uppercase mb-1">Players Online</div>
+            <div id="stat-players" class="text-2xl font-bold text-white">{{.Stats.Players}} / {{.Stats.MaxPlayers}}</div>
+        </div>
+        <div class="bg-[#18181b] border border-zinc-800 p-6 rounded-xl shadow-sm">
+            <div class="text-zinc-500 text-xs font-medium uppercase mb-1">TPS (Ticks/Sec)</div>
+            <div id="stat-tps" class="text-2xl font-bold text-emerald-400">{{.Stats.TPS}}</div>
+        </div>
+        <div class="bg-[#18181b] border border-zinc-800 p-6 rounded-xl shadow-sm">
+            <div class="text-zinc-500 text-xs font-medium uppercase mb-1">Memory Usage</div>
+            <div id="stat-ram" class="text-2xl font-bold text-sky-400">{{.Stats.RamUsed}}MB</div>
+        </div>
+        <div class="bg-[#18181b] border border-zinc-800 p-6 rounded-xl shadow-sm">
+            <div class="text-zinc-500 text-xs font-medium uppercase mb-1">Server Status</div>
+            <div class="flex items-center gap-2 mt-1">
+                <span class="w-3 h-3 bg-emerald-500 rounded-full"></span>
+                <span class="text-white font-semibold">Healthy</span>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="text-lg font-bold text-white mb-4">Quick Management</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button onclick="sendCmd('save-all')" class="bg-zinc-900 border border-zinc-800 p-4 rounded-lg text-left hover:bg-zinc-800 transition-all group">
+            <div class="text-white font-medium mb-1 group-hover:text-blue-400">Save World</div>
+            <div class="text-xs text-zinc-500">Force an immediate world data flush.</div>
+        </button>
+        <button onclick="sendCmd('reload confirm')" class="bg-zinc-900 border border-zinc-800 p-4 rounded-lg text-left hover:bg-zinc-800 transition-all group">
+            <div class="text-white font-medium mb-1 group-hover:text-amber-400">Reload Configs</div>
+            <div class="text-xs text-zinc-500">Hot-reload all plugin configurations.</div>
+        </button>
+        <button onclick="sendCmd('stop')" class="bg-red-950/20 border border-red-900/30 p-4 rounded-lg text-left hover:bg-red-900/20 transition-all group">
+            <div class="text-red-400 font-medium mb-1">Shut Down</div>
+            <div class="text-xs text-red-900/70">Safely stop the server instance.</div>
+        </button>
     </div>
 
     <script>
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
+        function sendCmd(cmd) {
+            if(confirm(`Execute /${cmd}?`)) ws.send(JSON.stringify({event: 'console_command', command: cmd}));
+        }
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.event === 'server_stats') {
-                const stats = data.payload;
-                document.getElementById('stat-players').textContent = `${stats.players} / ${stats.max_players}`;
-                document.getElementById('stat-tps').textContent = stats.tps;
-                document.getElementById('stat-ram').textContent = `${stats.ram_used}MB / ${stats.ram_max}MB`;
+                const s = data.payload;
+                document.getElementById('stat-players').textContent = `${s.players} / ${s.max_players}`;
+                document.getElementById('stat-tps').textContent = s.tps;
+                document.getElementById('stat-ram').textContent = `${s.ram_used}MB`;
             }
         };
     </script>

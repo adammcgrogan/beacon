@@ -1,40 +1,56 @@
 {{define "base"}}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beacon - {{.Title}}</title>
+    <title>Beacon — {{.Title}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; font-family: -apple-system, sans-serif; background: #121212; color: #eee; display: flex; height: 100vh; }
-        nav { width: 250px; background: #1e1e1e; padding: 20px; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        nav h2 { color: #569cd6; margin-top: 0; display: flex; align-items: center; gap: 10px; }
-        nav a { display: block; padding: 10px; color: #ccc; text-decoration: none; margin-bottom: 5px; border-radius: 4px; }
-        nav a:hover { background: #333; }
-        .active { background: #2d2d2d; color: #fff; font-weight: bold; }
-        main { flex: 1; padding: 20px; overflow-y: auto; }
-        
-        .brand-logo { width: 32px; height: 32px; border-radius: 6px; }
+        body { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .sidebar-link.active { background: #27272a; color: #fff; border-right: 2px solid #3b82f6; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
     </style>
 </head>
-<body>
-    <nav>
-        <h2>
-            <img src="/static/logo_bg.png" alt="Beacon Logo" class="brand-logo">
-            Beacon
-        </h2>
-        <a href="/" class="{{if eq .ActiveTab "dashboard"}}active{{end}}">📊 Dashboard</a>
-        <a href="/console" class="{{if eq .ActiveTab "console"}}active{{end}}">💻 Live Console</a>
-        <a href="/players" class="{{if eq .ActiveTab "players"}}active{{end}}">👥 Players</a>
+<body class="bg-[#09090b] text-zinc-400 antialiased flex h-screen overflow-hidden">
+    <nav class="w-64 bg-[#09090b] border-r border-zinc-800 flex flex-col p-4">
+        <div class="flex items-center gap-3 px-2 mb-8">
+            <img src="/static/logo_bg.png" alt="Logo" class="w-8 h-8 rounded-lg shadow-lg">
+            <span class="text-white font-bold text-lg tracking-tight">Beacon</span>
+        </div>
+        
+        <div class="space-y-1 flex-1">
+            <a href="/" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "dashboard"}}active{{end}}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z"></path></svg>
+                Dashboard
+            </a>
+            <a href="/console" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "console"}}active{{end}}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                Live Console
+            </a>
+            <a href="/players" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "players"}}active{{end}}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                Players
+            </a>
+        </div>
+
+        <div class="pt-4 border-t border-zinc-800">
+            <div class="px-3 py-2 text-xs font-semibold text-zinc-500 uppercase">System Status</div>
+            <div class="flex items-center gap-2 px-3 py-2 text-sm">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="text-zinc-300">Connected</span>
+            </div>
+        </div>
     </nav>
-    <main>
-        {{if eq .ActiveTab "dashboard"}}
-            {{template "dashboard" .}}
-        {{else if eq .ActiveTab "console"}}
-            {{template "console" .}}
-        {{else if eq .ActiveTab "players"}}
-            {{template "players" .}}
-        {{end}}
+
+    <main class="flex-1 overflow-y-auto p-8 bg-[#0c0c0e]">
+        {{if eq .ActiveTab "dashboard"}}{{template "dashboard" .}}
+        {{else if eq .ActiveTab "console"}}{{template "console" .}}
+        {{else if eq .ActiveTab "players"}}{{template "players" .}}{{end}}
     </main>
 </body>
 </html>

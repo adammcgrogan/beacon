@@ -1,22 +1,25 @@
 {{define "players"}}
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h1 id="player-count" style="margin: 0;">Players Online ({{.Stats.Players}} / {{.Stats.MaxPlayers}})</h1>
-        <input type="text" id="player-search" autocomplete="off" placeholder="🔍 Search players..." 
-               style="width: 300px; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace;">
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Online Players</h1>
+            <p class="text-zinc-500 text-sm" id="player-count">Managing {{.Stats.Players}} online entities.</p>
+        </div>
+        <input type="text" id="player-search" placeholder="Search by name or UUID..." 
+            class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-80">
     </div>
-    
-    <div style="background: #1e1e1e; border-radius: 8px; border: 1px solid #333; overflow: hidden; max-width: 1000px;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-            <thead>
-                <tr style="background: #2d2d2d; border-bottom: 2px solid #444; cursor: pointer;">
-                    <th style="padding: 15px;">Head</th>
-                    <th onclick="setSort('name')" style="padding: 15px;">Name ↕</th>
-                    <th onclick="setSort('ping')" style="padding: 15px;">Ping ↕</th>
-                    <th onclick="setSort('playtime')" style="padding: 15px;">Playtime ↕</th>
-                    <th style="padding: 15px;">World</th>
+
+    <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+        <table class="w-full text-left text-sm">
+            <thead class="bg-[#09090b] text-zinc-500 font-medium uppercase text-[11px] tracking-wider border-bottom border-zinc-800">
+                <tr>
+                    <th class="px-6 py-4">Player</th>
+                    <th class="px-6 py-4 cursor-pointer hover:text-white" onclick="setSort('ping')">Ping ↕</th>
+                    <th class="px-6 py-4 cursor-pointer hover:text-white" onclick="setSort('playtime')">Time Online ↕</th>
+                    <th class="px-6 py-4">World</th>
+                    <th class="px-6 py-4 text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody id="player-table-body">
+            <tbody id="player-table-body" class="divide-y divide-zinc-800">
                 </tbody>
         </table>
     </div>
@@ -27,70 +30,56 @@
         const searchInput = document.getElementById('player-search');
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
 
-        let lastPlayerData = [];
+        let players = [];
         let sortKey = 'name';
         let sortAsc = true;
 
-        function setSort(key) {
-            if (sortKey === key) sortAsc = !sortAsc;
-            else { sortKey = key; sortAsc = true; }
-            renderPlayers();
-        }
+        function setSort(k) { if(sortKey === k) sortAsc = !sortAsc; else { sortKey = k; sortAsc = true; } render(); }
 
-        function formatPlaytime(ticks) {
-            const totalSeconds = ticks / 20;
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            return `${hours}h ${minutes}m`;
-        }
-
-        function renderPlayers() {
+        function render() {
             const query = searchInput.value.toLowerCase();
+            let filtered = players.filter(p => p.name.toLowerCase().includes(query) || p.uuid.toLowerCase().includes(query));
             
-            let filtered = lastPlayerData.filter(p => 
-                p.name.toLowerCase().includes(query) || p.uuid.toLowerCase().includes(query)
-            );
-
-            // Sorting logic
-            filtered.sort((a, b) => {
-                let valA = a[sortKey];
-                let valB = b[sortKey];
-                if (typeof valA === 'string') valA = valA.toLowerCase();
-                if (valA < valB) return sortAsc ? -1 : 1;
-                if (valA > valB) return sortAsc ? 1 : -1;
-                return 0;
+            filtered.sort((a,b) => {
+                let vA = a[sortKey], vB = b[sortKey];
+                return sortAsc ? (vA < vB ? -1 : 1) : (vA < vB ? 1 : -1);
             });
 
-            tbody.innerHTML = '';
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #888;">No players found.</td></tr>';
-                return;
-            }
-
+            tbody.innerHTML = filtered.length ? '' : '<tr><td colspan="5" class="px-6 py-10 text-center text-zinc-600 italic">No matching players online.</td></tr>';
+            
             filtered.forEach(p => {
                 const row = `
-                    <tr style="border-bottom: 1px solid #333;">
-                        <td style="padding: 10px 15px;">
-                            <img src="https://mc-heads.net/avatar/${p.uuid}/32" alt="${p.name}" style="border-radius: 4px; width: 32px; height: 32px;">
+                    <tr class="hover:bg-zinc-900/40 transition-colors group">
+                        <td class="px-6 py-4 flex items-center gap-3">
+                            <img src="https://mc-heads.net/avatar/${p.uuid}/32" class="w-8 h-8 rounded shadow-inner">
+                            <div>
+                                <div class="text-white font-semibold">${p.name}</div>
+                                <div class="text-[10px] text-zinc-600 mono">${p.uuid.substring(0,18)}...</div>
+                            </div>
                         </td>
-                        <td style="padding: 10px 15px; font-weight: bold; color: #569cd6;">${p.name}</td>
-                        <td style="padding: 10px 15px; color: #b5cea8;">${p.ping} ms</td>
-                        <td style="padding: 10px 15px; color: #ce9178;">${formatPlaytime(p.playtime)}</td>
-                        <td style="padding: 10px 15px; color: #888; font-size: 0.9em;">${p.world}</td>
+                        <td class="px-6 py-4">
+                            <span class="${p.ping < 100 ? 'text-emerald-400' : 'text-amber-400'} font-medium">${p.ping}ms</span>
+                        </td>
+                        <td class="px-6 py-4 text-zinc-400">${Math.floor(p.playtime/1200)}m</td>
+                        <td class="px-6 py-4 text-zinc-500 italic">${p.world}</td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="kick('${p.name}')" class="text-xs bg-zinc-800 text-zinc-400 px-3 py-1 rounded hover:bg-red-900/30 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100">Kick</button>
+                        </td>
                     </tr>`;
                 tbody.insertAdjacentHTML('beforeend', row);
             });
         }
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.event === 'server_stats') {
-                lastPlayerData = data.payload.player_list || [];
-                countHeader.textContent = `Players Online (${data.payload.players} / ${data.payload.max_players})`;
-                renderPlayers();
+        function kick(n) { if(confirm(`Kick ${n}?`)) ws.send(JSON.stringify({event:'console_command', command: `kick ${n} Dashboard Kick`})); }
+
+        ws.onmessage = (e) => {
+            const d = JSON.parse(e.data);
+            if(d.event === 'server_stats') {
+                players = d.payload.player_list || [];
+                countHeader.textContent = `Managing ${d.payload.players} online entities.`;
+                render();
             }
         };
-
-        searchInput.addEventListener('input', renderPlayers);
+        searchInput.oninput = render;
     </script>
 {{end}}

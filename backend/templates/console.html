@@ -1,150 +1,95 @@
 {{define "console"}}
-    <h1>Live Console</h1>
-    
-    <div style="margin-bottom: 10px; display: flex; gap: 10px;">
-        <input type="text" id="search-input" autocomplete="off" placeholder="🔍 Search logs..." style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace; box-sizing: border-box;">
-        
-        <button onclick="clearConsole()" style="background: #2d2d2d; color: #888; border: 1px solid #444; padding: 0 15px; border-radius: 5px; cursor: pointer; font-family: monospace; font-size: 0.85em; white-space: nowrap;">
-            Clear View
-        </button>
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Live Console</h1>
+            <p class="text-zinc-500 text-sm">Streaming server logs via WebSocket.</p>
+        </div>
+        <div class="flex gap-2">
+            <input type="text" id="search-input" placeholder="Search logs..." 
+                class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-64">
+            <button onclick="clearConsole()" class="text-xs text-zinc-500 hover:text-white border border-zinc-800 px-3 py-2 rounded-lg transition-colors">Clear</button>
+        </div>
     </div>
 
-    <div style="position: relative; margin-bottom: 15px;">
-        <div id="logs-container" style="height: 65vh; overflow-y: auto; background: #000; padding: 15px; border-radius: 5px; font-family: monospace; padding-bottom: 40px;"></div>
+    <div class="relative group">
+        <div id="logs-container" class="h-[70vh] overflow-y-auto bg-[#09090b] border border-zinc-800 rounded-xl p-4 mono text-sm leading-relaxed space-y-0.5 shadow-inner"></div>
         
-        <button id="new-msg-btn" style="display: none; position: absolute; bottom: 20px; right: 30px; background: #569cd6; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
+        <button id="new-msg-btn" class="hidden absolute bottom-6 right-6 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-4 rounded-full shadow-xl transition-all">
             ↓ New Messages
         </button>
     </div>
 
-    <div style="display: flex; gap: 10px;">
-        <input type="text" id="cmd-input" autocomplete="off" placeholder="Enter command..." style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace;">
-        <button id="cmd-btn" style="padding: 10px 20px; background: #569cd6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Send</button>
+    <div class="mt-4 flex gap-2">
+        <div class="relative flex-1">
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 mono">></span>
+            <input type="text" id="cmd-input" placeholder="Enter server command..." 
+                class="w-full bg-[#18181b] border border-zinc-800 rounded-lg pl-8 pr-4 py-3 text-white mono text-sm focus:outline-none focus:border-zinc-600 transition-colors">
+        </div>
+        <button id="cmd-btn" class="bg-white text-black font-bold px-6 py-3 rounded-lg hover:bg-zinc-200 transition-colors">Execute</button>
     </div>
 
     <script>
         const logsContainer = document.getElementById('logs-container');
         const input = document.getElementById('cmd-input');
+        const searchInput = document.getElementById('search-input');
         const btn = document.getElementById('cmd-btn');
         const newMsgBtn = document.getElementById('new-msg-btn');
-        const searchInput = document.getElementById('search-input'); // NEW
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
 
         let commandHistory = [];
         let historyIndex = -1;
 
-        ws.onopen = () => appendLog('[SYSTEM]: Connected to Go Backend...', 'INFO');
-        ws.onclose = () => appendLog('[SYSTEM]: Disconnected from server.', 'ERROR');
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.event === 'console_log') {
-                appendLog(data.payload.message, data.payload.level);
-            }
-        };
-
-        function sendCommand() {
-            const cmd = input.value.trim();
-            if (cmd && ws.readyState === WebSocket.OPEN) {
-                appendLog('> ' + cmd, 'INFO');
-                commandHistory.push(cmd);
-                historyIndex = commandHistory.length;
-
-                ws.send(JSON.stringify({
-                    event: 'console_command',
-                    command: cmd
-                }));
-                
-                input.value = ''; 
-                scrollToBottom();
-            }
-        }
-
-        btn.addEventListener('click', sendCommand);
-        
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                sendCommand();
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault(); 
-                if (commandHistory.length > 0 && historyIndex > 0) {
-                    historyIndex--;
-                    input.value = commandHistory[historyIndex];
-                }
-            } else if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                if (historyIndex < commandHistory.length - 1) {
-                    historyIndex++;
-                    input.value = commandHistory[historyIndex];
-                } else if (historyIndex === commandHistory.length - 1) {
-                    historyIndex++;
-                    input.value = '';
-                }
-            }
-        });
-
-        searchInput.addEventListener('input', () => {
-            const query = searchInput.value.toLowerCase();
-            const logs = logsContainer.children;
-            
-            for (let i = 0; i < logs.length; i++) {
-                const log = logs[i];
-                if (log.textContent.toLowerCase().includes(query)) {
-                    log.style.display = ''; // Show
-                } else {
-                    log.style.display = 'none'; // Hide
-                }
-            }
-            
-            scrollToBottom(); 
-        });
-
-        function isAtBottom() {
-            return logsContainer.scrollHeight - logsContainer.scrollTop - logsContainer.clientHeight <= 50;
-        }
-
-        function scrollToBottom() {
-            logsContainer.scrollTop = logsContainer.scrollHeight;
-            newMsgBtn.style.display = 'none';
-        }
-
-        logsContainer.addEventListener('scroll', () => {
-            if (isAtBottom()) {
-                newMsgBtn.style.display = 'none';
-            }
-        });
-
-        newMsgBtn.addEventListener('click', scrollToBottom);
-
-        function appendLog(message, levelClass) {
+        function appendLog(message, level) {
             const div = document.createElement('div');
-            
-            if (levelClass === 'ERROR' || levelClass === 'FATAL') div.style.color = '#f44747';
-            else if (levelClass === 'WARN') div.style.color = '#ce9178';
-            else div.style.color = '#b5cea8';
-            
+            const color = level === 'ERROR' ? 'text-red-400' : level === 'WARN' ? 'text-amber-300' : 'text-zinc-400';
+            div.className = `${color} hover:bg-zinc-900/50 px-1 rounded transition-colors`;
             div.textContent = message;
             
             const query = searchInput.value.toLowerCase();
-            if (query && !message.toLowerCase().includes(query)) {
-                div.style.display = 'none';
-            }
+            if (query && !message.toLowerCase().includes(query)) div.classList.add('hidden');
             
-            const wasAtBottom = isAtBottom();
+            const wasAtBottom = logsContainer.scrollHeight - logsContainer.scrollTop - logsContainer.clientHeight <= 100;
             logsContainer.appendChild(div);
 
-            if (div.style.display !== 'none') {
-                if (wasAtBottom) {
-                    scrollToBottom();
-                } else {
-                    newMsgBtn.style.display = 'block';
-                }
+            if (wasAtBottom) {
+                logsContainer.scrollTop = logsContainer.scrollHeight;
+                newMsgBtn.classList.add('hidden');
+            } else if (!div.classList.contains('hidden')) {
+                newMsgBtn.classList.remove('hidden');
             }
         }
 
-        function clearConsole() {
-            logsContainer.innerHTML = '';
-            appendLog('[SYSTEM]: Console view cleared locally.', 'INFO');
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
+        };
+
+        function execute() {
+            const cmd = input.value.trim();
+            if (cmd) {
+                appendLog(`> ${cmd}`, 'INFO');
+                commandHistory.push(cmd);
+                historyIndex = commandHistory.length;
+                ws.send(JSON.stringify({event: 'console_command', command: cmd}));
+                input.value = '';
+            }
         }
+
+        btn.onclick = execute;
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') execute();
+            if (e.key === 'ArrowUp' && historyIndex > 0) input.value = commandHistory[--historyIndex];
+            if (e.key === 'ArrowDown') input.value = ++historyIndex < commandHistory.length ? commandHistory[historyIndex] : "";
+        };
+
+        searchInput.oninput = () => {
+            const query = searchInput.value.toLowerCase();
+            Array.from(logsContainer.children).forEach(log => {
+                log.classList.toggle('hidden', query && !log.textContent.toLowerCase().includes(query));
+            });
+        };
+
+        function clearConsole() { logsContainer.innerHTML = ''; }
+        newMsgBtn.onclick = () => { logsContainer.scrollTop = logsContainer.scrollHeight; newMsgBtn.classList.add('hidden'); };
     </script>
 {{end}}
