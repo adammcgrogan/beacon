@@ -1,8 +1,12 @@
 {{define "console"}}
     <h1>Live Console</h1>
     
+    <div style="margin-bottom: 10px;">
+        <input type="text" id="search-input" autocomplete="off" placeholder="🔍 Search logs..." style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace; box-sizing: border-box;">
+    </div>
+
     <div style="position: relative; margin-bottom: 15px;">
-        <div id="logs-container" style="height: 70vh; overflow-y: auto; background: #000; padding: 15px; border-radius: 5px; font-family: monospace; padding-bottom: 40px;"></div>
+        <div id="logs-container" style="height: 65vh; overflow-y: auto; background: #000; padding: 15px; border-radius: 5px; font-family: monospace; padding-bottom: 40px;"></div>
         
         <button id="new-msg-btn" style="display: none; position: absolute; bottom: 20px; right: 30px; background: #569cd6; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
             ↓ New Messages
@@ -19,6 +23,7 @@
         const input = document.getElementById('cmd-input');
         const btn = document.getElementById('cmd-btn');
         const newMsgBtn = document.getElementById('new-msg-btn');
+        const searchInput = document.getElementById('search-input'); // NEW
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
 
         let commandHistory = [];
@@ -74,6 +79,22 @@
             }
         });
 
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            const logs = logsContainer.children;
+            
+            for (let i = 0; i < logs.length; i++) {
+                const log = logs[i];
+                if (log.textContent.toLowerCase().includes(query)) {
+                    log.style.display = ''; // Show
+                } else {
+                    log.style.display = 'none'; // Hide
+                }
+            }
+            
+            scrollToBottom(); 
+        });
+
         function isAtBottom() {
             return logsContainer.scrollHeight - logsContainer.scrollTop - logsContainer.clientHeight <= 50;
         }
@@ -94,21 +115,26 @@
         function appendLog(message, levelClass) {
             const div = document.createElement('div');
             
-            // Simple line coloring based on level
             if (levelClass === 'ERROR' || levelClass === 'FATAL') div.style.color = '#f44747';
             else if (levelClass === 'WARN') div.style.color = '#ce9178';
             else div.style.color = '#b5cea8';
             
-            // Safely set text content (no HTML parsing)
             div.textContent = message;
+            
+            const query = searchInput.value.toLowerCase();
+            if (query && !message.toLowerCase().includes(query)) {
+                div.style.display = 'none';
+            }
             
             const wasAtBottom = isAtBottom();
             logsContainer.appendChild(div);
 
-            if (wasAtBottom) {
-                scrollToBottom();
-            } else {
-                newMsgBtn.style.display = 'block';
+            if (div.style.display !== 'none') {
+                if (wasAtBottom) {
+                    scrollToBottom();
+                } else {
+                    newMsgBtn.style.display = 'block';
+                }
             }
         }
     </script>
