@@ -4,18 +4,12 @@
 
 ---
 
-## Purpose
-The goal of Beacon is to provide a clear, real-time window into your Minecraft server's "brain" without requiring heavy external panels. By using a Go-powered backend and high-performance WebSockets, Beacon ensures that your logs and metrics are delivered instantly and securely.
-
----
-
 ## Current Features
 
 ### Live Console & Command Execution
 * **Real-Time Streaming**: Console logs are streamed instantly from the server to your browser.
 * **Log History**: The backend maintains a buffer of the last 1,000 log lines, so you see the full context even after refreshing the page.
 * **Two-Way Communication**: Send commands directly to the Minecraft console from the web interface.
-* **ANSI Filtering**: Automatically strips terminal color codes for a clean, readable web log.
 
 ### Server Health Dashboard
 * **Live Metrics**: Real-time tracking of Server TPS, RAM usage, and player counts.
@@ -27,7 +21,7 @@ The goal of Beacon is to provide a clear, real-time window into your Minecraft s
 
 ---
 
-## 🗺️ Roadmap (Upcoming Features)
+## Roadmap (Upcoming Features)
 
 * **User Authentication**: Secure the dashboard with a login system to prevent unauthorized access.
 * **Multi-Server Support**: Monitor and manage multiple Minecraft instances from a single Beacon dashboard.
