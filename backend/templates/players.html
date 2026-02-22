@@ -1,0 +1,67 @@
+{{define "players"}}
+    <h1 id="player-count">Players Online ({{.Stats.Players}} / {{.Stats.MaxPlayers}})</h1>
+    
+    <div style="background: #1e1e1e; border-radius: 8px; border: 1px solid #333; overflow: hidden; max-width: 800px;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background: #2d2d2d; border-bottom: 2px solid #444;">
+                    <th style="padding: 15px;">Avatar</th>
+                    <th style="padding: 15px;">Name</th>
+                    <th style="padding: 15px;">Ping</th>
+                    <th style="padding: 15px;">UUID</th>
+                </tr>
+            </thead>
+            <tbody id="player-table-body">
+                {{if eq (len .Stats.PlayerList) 0}}
+                <tr>
+                    <td colspan="4" style="padding: 20px; text-align: center; color: #888;">No players currently online.</td>
+                </tr>
+                {{else}}
+                    {{range .Stats.PlayerList}}
+                    <tr style="border-bottom: 1px solid #333;">
+                        <td style="padding: 10px 15px;">
+                            <img src="https://crafatar.com/avatars/{{.UUID}}?size=32&overlay" alt="{{.Name}}" style="border-radius: 4px;">
+                        </td>
+                        <td style="padding: 10px 15px; font-weight: bold; color: #569cd6;">{{.Name}}</td>
+                        <td style="padding: 10px 15px; color: #b5cea8;">{{.Ping}} ms</td>
+                        <td style="padding: 10px 15px; color: #888; font-family: monospace; font-size: 0.9em;">{{.UUID}}</td>
+                    </tr>
+                    {{end}}
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const tbody = document.getElementById('player-table-body');
+        const countHeader = document.getElementById('player-count');
+        const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.event === 'server_stats') {
+                const stats = data.payload;
+                countHeader.textContent = `Players Online (${stats.players} / ${stats.max_players})`;
+                
+                tbody.innerHTML = ''; // Clear current rows
+                
+                if (!stats.player_list || stats.player_list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #888;">No players currently online.</td></tr>';
+                } else {
+                    stats.player_list.forEach(p => {
+                        const row = `
+                            <tr style="border-bottom: 1px solid #333;">
+                                <td style="padding: 10px 15px;">
+                                    <img src="https://crafatar.com/avatars/${p.uuid}?size=32&overlay" alt="${p.name}" style="border-radius: 4px;">
+                                </td>
+                                <td style="padding: 10px 15px; font-weight: bold; color: #569cd6;">${p.name}</td>
+                                <td style="padding: 10px 15px; color: #b5cea8;">${p.ping} ms</td>
+                                <td style="padding: 10px 15px; color: #888; font-family: monospace; font-size: 0.9em;">${p.uuid}</td>
+                            </tr>`;
+                        tbody.insertAdjacentHTML('beforeend', row);
+                    });
+                }
+            }
+        };
+    </script>
+{{end}}

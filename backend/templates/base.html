@@ -25,12 +25,15 @@
         </h2>
         <a href="/" class="{{if eq .ActiveTab "dashboard"}}active{{end}}">📊 Dashboard</a>
         <a href="/console" class="{{if eq .ActiveTab "console"}}active{{end}}">💻 Live Console</a>
+        <a href="/players" class="{{if eq .ActiveTab "players"}}active{{end}}">👥 Players</a>
     </nav>
     <main>
         {{if eq .ActiveTab "dashboard"}}
             {{template "dashboard" .}}
         {{else if eq .ActiveTab "console"}}
             {{template "console" .}}
+        {{else if eq .ActiveTab "players"}}
+            {{template "players" .}}
         {{end}}
     </main>
 </body>

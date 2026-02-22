@@ -7,7 +7,6 @@ import (
 	"net/http"
 )
 
-// Pre-compile our Go templates
 var tmpl = template.Must(template.ParseGlob("templates/*.html"))
 
 func main() {
@@ -18,6 +17,7 @@ func main() {
 	// Page Routes
 	http.HandleFunc("/", server.HandleDashboard)
 	http.HandleFunc("/console", server.HandleConsole)
+	http.HandleFunc("/players", server.HandlePlayers)
 
 	// WebSocket Routes
 	http.HandleFunc("/ws", server.HandleMinecraftWebSocket)

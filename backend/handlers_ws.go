@@ -39,27 +39,28 @@ func (s *DashboardServer) HandleMinecraftWebSocket(w http.ResponseWriter, r *htt
 			break
 		}
 
-		var incoming map[string]interface{}
+		// Cleanly unmarshal only the envelope first
+		var incoming struct {
+			Event   string          `json:"event"`
+			Payload json.RawMessage `json:"payload"`
+		}
+
 		if err := json.Unmarshal(messageBytes, &incoming); err == nil {
-			if event, ok := incoming["event"].(string); ok {
-				if event == "server_stats" {
-					if payload, ok := incoming["payload"].(map[string]interface{}); ok {
-						s.statsLock.Lock()
-						s.latestStats.Players = int(payload["players"].(float64))
-						s.latestStats.MaxPlayers = int(payload["max_players"].(float64))
-						s.latestStats.TPS = payload["tps"].(string)
-						s.latestStats.RamUsed = int64(payload["ram_used"].(float64))
-						s.latestStats.RamMax = int64(payload["ram_max"].(float64))
-						s.statsLock.Unlock()
-					}
-				} else if event == "console_log" {
-					s.historyLock.Lock()
-					if len(s.logHistory) >= 1000 {
-						s.logHistory = s.logHistory[1:]
-					}
-					s.logHistory = append(s.logHistory, messageBytes)
-					s.historyLock.Unlock()
+			switch incoming.Event {
+			case "server_stats":
+				var stats ServerStats
+				if err := json.Unmarshal(incoming.Payload, &stats); err == nil {
+					s.statsLock.Lock()
+					s.latestStats = stats
+					s.statsLock.Unlock()
 				}
+			case "console_log":
+				s.historyLock.Lock()
+				if len(s.logHistory) >= 1000 {
+					s.logHistory = s.logHistory[1:]
+				}
+				s.logHistory = append(s.logHistory, messageBytes)
+				s.historyLock.Unlock()
 			}
 		}
 
