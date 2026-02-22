@@ -17,7 +17,6 @@ var upgrader = websocket.Upgrader{
 
 var tmpl = template.Must(template.ParseGlob("templates/*.html"))
 
-// NEW: A struct to hold the latest server health data
 type ServerStats struct {
 	Players    int    `json:"players"`
 	MaxPlayers int    `json:"max_players"`
@@ -30,16 +29,22 @@ type DashboardServer struct {
 	webClients  map[*websocket.Conn]bool
 	clientsLock sync.Mutex
 
-	// NEW: Store the latest stats safely
 	latestStats ServerStats
 	statsLock   sync.Mutex
+
+	mcConn *websocket.Conn
+	mcLock sync.Mutex
+
+	// NEW: A buffer to hold historical logs, and a lock to keep it thread-safe
+	logHistory  [][]byte
+	historyLock sync.RWMutex
 }
 
 func NewDashboardServer() *DashboardServer {
 	return &DashboardServer{
-		webClients: make(map[*websocket.Conn]bool),
-		// Set some default stats for before the server connects
+		webClients:  make(map[*websocket.Conn]bool),
 		latestStats: ServerStats{TPS: "0.00"},
+		logHistory:  make([][]byte, 0), // Initialize empty history
 	}
 }
 
@@ -51,7 +56,7 @@ func main() {
 	http.HandleFunc("/ws", server.HandleMinecraftWebSocket)
 	http.HandleFunc("/ws/web", server.HandleWebWebSocket)
 
-	fmt.Println("🚀 MCDash Backend running on http://localhost:8080")
+	fmt.Println("🚀 Beacon Backend running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -60,7 +65,6 @@ func (s *DashboardServer) HandleDashboard(w http.ResponseWriter, r *http.Request
 	currentStats := s.latestStats
 	s.statsLock.Unlock()
 
-	// NEW: Pass the real stats to the HTML!
 	data := map[string]interface{}{
 		"Title":     "Overview",
 		"ActiveTab": "dashboard",
@@ -80,7 +84,24 @@ func (s *DashboardServer) HandleMinecraftWebSocket(w http.ResponseWriter, r *htt
 	if err != nil {
 		return
 	}
-	defer conn.Close()
+
+	s.mcLock.Lock()
+	s.mcConn = conn
+	s.mcLock.Unlock()
+
+	// NEW: Clear the history when the Minecraft server restarts/reconnects
+	s.historyLock.Lock()
+	s.logHistory = make([][]byte, 0)
+	s.historyLock.Unlock()
+
+	defer func() {
+		s.mcLock.Lock()
+		if s.mcConn == conn {
+			s.mcConn = nil
+		}
+		s.mcLock.Unlock()
+		conn.Close()
+	}()
 
 	fmt.Println("🟢 Minecraft Server Connected!")
 
@@ -90,25 +111,32 @@ func (s *DashboardServer) HandleMinecraftWebSocket(w http.ResponseWriter, r *htt
 			break
 		}
 
-		// NEW: Inspect the JSON to see if it's a stats update
 		var incoming map[string]interface{}
 		if err := json.Unmarshal(messageBytes, &incoming); err == nil {
-			if event, ok := incoming["event"].(string); ok && event == "server_stats" {
-
-				// Parse the payload and update our Go memory
-				if payload, ok := incoming["payload"].(map[string]interface{}); ok {
-					s.statsLock.Lock()
-					s.latestStats.Players = int(payload["players"].(float64))
-					s.latestStats.MaxPlayers = int(payload["max_players"].(float64))
-					s.latestStats.TPS = payload["tps"].(string)
-					s.latestStats.RamUsed = int64(payload["ram_used"].(float64))
-					s.latestStats.RamMax = int64(payload["ram_max"].(float64))
-					s.statsLock.Unlock()
+			if event, ok := incoming["event"].(string); ok {
+				if event == "server_stats" {
+					if payload, ok := incoming["payload"].(map[string]interface{}); ok {
+						s.statsLock.Lock()
+						s.latestStats.Players = int(payload["players"].(float64))
+						s.latestStats.MaxPlayers = int(payload["max_players"].(float64))
+						s.latestStats.TPS = payload["tps"].(string)
+						s.latestStats.RamUsed = int64(payload["ram_used"].(float64))
+						s.latestStats.RamMax = int64(payload["ram_max"].(float64))
+						s.statsLock.Unlock()
+					}
+				} else if event == "console_log" {
+					// NEW: Save the log to our history buffer
+					s.historyLock.Lock()
+					// Keep only the last 1000 logs to prevent memory leaks
+					if len(s.logHistory) >= 1000 {
+						s.logHistory = s.logHistory[1:] // Remove the oldest log
+					}
+					s.logHistory = append(s.logHistory, messageBytes)
+					s.historyLock.Unlock()
 				}
 			}
 		}
 
-		// Always broadcast everything to the web clients (for the live console)
 		s.broadcastToWebClients(messageBytes)
 	}
 }
@@ -119,29 +147,36 @@ func (s *DashboardServer) HandleWebWebSocket(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	s.addWebClient(conn)
+	s.clientsLock.Lock()
+	s.webClients[conn] = true
+	s.clientsLock.Unlock()
+
 	defer func() {
-		s.removeWebClient(conn)
+		s.clientsLock.Lock()
+		delete(s.webClients, conn)
+		s.clientsLock.Unlock()
 		conn.Close()
 	}()
 
+	// NEW: As soon as a browser connects, send them the entire log history
+	s.historyLock.RLock()
+	for _, msg := range s.logHistory {
+		conn.WriteMessage(websocket.TextMessage, msg)
+	}
+	s.historyLock.RUnlock()
+
 	for {
-		if _, _, err := conn.ReadMessage(); err != nil {
+		_, messageBytes, err := conn.ReadMessage()
+		if err != nil {
 			break
 		}
+
+		s.mcLock.Lock()
+		if s.mcConn != nil {
+			s.mcConn.WriteMessage(websocket.TextMessage, messageBytes)
+		}
+		s.mcLock.Unlock()
 	}
-}
-
-func (s *DashboardServer) addWebClient(conn *websocket.Conn) {
-	s.clientsLock.Lock()
-	defer s.clientsLock.Unlock()
-	s.webClients[conn] = true
-}
-
-func (s *DashboardServer) removeWebClient(conn *websocket.Conn) {
-	s.clientsLock.Lock()
-	defer s.clientsLock.Unlock()
-	delete(s.webClients, conn)
 }
 
 func (s *DashboardServer) broadcastToWebClients(message []byte) {

@@ -1,9 +1,17 @@
 {{define "console"}}
     <h1>Live Console</h1>
-    <div id="logs-container" style="height: 75vh; overflow-y: auto; background: #000; padding: 15px; border-radius: 5px; font-family: monospace;"></div>
+    
+    <div id="logs-container" style="height: 70vh; overflow-y: auto; background: #000; padding: 15px; border-radius: 5px; font-family: monospace; margin-bottom: 15px;"></div>
+
+    <div style="display: flex; gap: 10px;">
+        <input type="text" id="cmd-input" placeholder="Enter command..." style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace;">
+        <button id="cmd-btn" style="padding: 10px 20px; background: #569cd6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Send</button>
+    </div>
 
     <script>
         const logsContainer = document.getElementById('logs-container');
+        const input = document.getElementById('cmd-input');
+        const btn = document.getElementById('cmd-btn');
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
 
         ws.onopen = () => appendLog('[SYSTEM]: Connected to Go Backend...', 'INFO');
@@ -16,10 +24,32 @@
             }
         };
 
+        // NEW: Function to send the command over the WebSocket
+        function sendCommand() {
+            const cmd = input.value.trim();
+            if (cmd && ws.readyState === WebSocket.OPEN) {
+                
+                // Echo the command locally to the screen so you know you typed it
+                appendLog('> ' + cmd, 'INFO');
+
+                ws.send(JSON.stringify({
+                    event: 'console_command',
+                    command: cmd
+                }));
+                
+                input.value = ''; // Clear the box
+            }
+        }
+
+        // NEW: Bind the Send button and the Enter key
+        btn.addEventListener('click', sendCommand);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendCommand();
+        });
+
         function appendLog(message, levelClass) {
             const div = document.createElement('div');
             
-            // Basic color coding based on the log level
             if (levelClass === 'ERROR' || levelClass === 'FATAL') div.style.color = '#f44747';
             else if (levelClass === 'WARN') div.style.color = '#ce9178';
             else div.style.color = '#b5cea8';
