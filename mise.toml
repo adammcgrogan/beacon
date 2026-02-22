@@ -1,6 +1,6 @@
 [tasks.backend]
 description = "Starts the Go backend controller"
-dir = "backend" 
+dir = "backend/cmd/server" 
 run = "go run ."
 
 [tasks.build]

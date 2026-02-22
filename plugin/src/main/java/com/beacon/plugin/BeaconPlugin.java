@@ -1,35 +1,31 @@
 package com.beacon.plugin;
 
+import com.beacon.plugin.logging.WebSocketLogAppender;
+import com.beacon.plugin.websocket.BackendClient;
 import org.bukkit.plugin.java.JavaPlugin;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class BeaconPlugin extends JavaPlugin {
     
-    private BackendWebSocketClient webSocketClient;
+    private BackendClient webSocketClient;
     private WebSocketLogAppender logAppender;
 
-    /**
-     * Called by the Bukkit server when the plugin is enabled.
-     * This is the entry point of the plugin where we initiate the backend connection.
-     */
     @Override
     public void onEnable() {
         getLogger().info("Beacon Plugin is starting! Attempting to connect to Go backend...");
         connectToWebSocket();
     }
 
-    /**
-     * Called by the Bukkit server when the plugin is disabled (e.g., server shutdown).
-     * Ensures that we cleanly detach our log listener and close the WebSocket connection
-     * to prevent memory leaks or hanging connections.
-     */
     @Override
     public void onDisable() {
+        // 1. Stop listening to the console logs
         if (logAppender != null) {
             logAppender.detach();
         }
 
+        // 2. Safely close the WebSocket connection
         if (webSocketClient != null && !webSocketClient.isClosed()) {
             webSocketClient.close();
         }
@@ -37,14 +33,10 @@ public class BeaconPlugin extends JavaPlugin {
         getLogger().info("Beacon Plugin disabled. Connection closed.");
     }
 
-    /**
-     * Attempts to establish a WebSocket connection to the Go backend server.
-     * If the URI is invalid, it logs a severe error.
-     */
     private void connectToWebSocket() {
         try {
             URI serverUri = new URI("ws://localhost:8080/ws");
-            webSocketClient = new BackendWebSocketClient(serverUri, this);
+            webSocketClient = new BackendClient(serverUri, this);
             webSocketClient.connect();
         } catch (URISyntaxException e) {
             getLogger().severe("Invalid WebSocket URI: " + e.getMessage());
@@ -52,8 +44,7 @@ public class BeaconPlugin extends JavaPlugin {
     }
 
     /**
-     * Initializes the custom Log4j appender and attaches it to the root logger.
-     * This is called by the WebSocket client once a successful connection is made.
+     * Called by the BackendClient once a connection is successfully opened.
      */
     public void startLogCapture() {
         logAppender = new WebSocketLogAppender(webSocketClient);

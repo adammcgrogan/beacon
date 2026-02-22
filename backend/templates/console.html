@@ -4,7 +4,7 @@
     <div id="logs-container" style="height: 70vh; overflow-y: auto; background: #000; padding: 15px; border-radius: 5px; font-family: monospace; margin-bottom: 15px;"></div>
 
     <div style="display: flex; gap: 10px;">
-        <input type="text" id="cmd-input" placeholder="Enter command..." style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace;">
+        <input type="text" id="cmd-input" autocomplete="off" placeholder="Enter command..." style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace;">
         <button id="cmd-btn" style="padding: 10px 20px; background: #569cd6; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Send</button>
     </div>
 
@@ -13,6 +13,9 @@
         const input = document.getElementById('cmd-input');
         const btn = document.getElementById('cmd-btn');
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
+
+        let commandHistory = [];
+        let historyIndex = -1;
 
         ws.onopen = () => appendLog('[SYSTEM]: Connected to Go Backend...', 'INFO');
         ws.onclose = () => appendLog('[SYSTEM]: Disconnected from server.', 'ERROR');
@@ -24,27 +27,47 @@
             }
         };
 
-        // NEW: Function to send the command over the WebSocket
         function sendCommand() {
             const cmd = input.value.trim();
             if (cmd && ws.readyState === WebSocket.OPEN) {
                 
-                // Echo the command locally to the screen so you know you typed it
                 appendLog('> ' + cmd, 'INFO');
+
+                commandHistory.push(cmd);
+                historyIndex = commandHistory.length;
 
                 ws.send(JSON.stringify({
                     event: 'console_command',
                     command: cmd
                 }));
                 
-                input.value = ''; // Clear the box
+                input.value = ''; 
             }
         }
 
-        // NEW: Bind the Send button and the Enter key
         btn.addEventListener('click', sendCommand);
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendCommand();
+        
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendCommand();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault(); 
+                
+                if (commandHistory.length > 0 && historyIndex > 0) {
+                    historyIndex--;
+                    input.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    input.value = commandHistory[historyIndex];
+                } else if (historyIndex === commandHistory.length - 1) {
+                    historyIndex++;
+                    input.value = '';
+                }
+            }
         });
 
         function appendLog(message, levelClass) {
