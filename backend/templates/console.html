@@ -1,0 +1,32 @@
+{{define "console"}}
+    <h1>Live Console</h1>
+    <div id="logs-container" style="height: 75vh; overflow-y: auto; background: #000; padding: 15px; border-radius: 5px; font-family: monospace;"></div>
+
+    <script>
+        const logsContainer = document.getElementById('logs-container');
+        const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
+
+        ws.onopen = () => appendLog('[SYSTEM]: Connected to Go Backend...', 'INFO');
+        ws.onclose = () => appendLog('[SYSTEM]: Disconnected from server.', 'ERROR');
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.event === 'console_log') {
+                appendLog(data.payload.message, data.payload.level);
+            }
+        };
+
+        function appendLog(message, levelClass) {
+            const div = document.createElement('div');
+            
+            // Basic color coding based on the log level
+            if (levelClass === 'ERROR' || levelClass === 'FATAL') div.style.color = '#f44747';
+            else if (levelClass === 'WARN') div.style.color = '#ce9178';
+            else div.style.color = '#b5cea8';
+            
+            div.textContent = message;
+            logsContainer.appendChild(div);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+    </script>
+{{end}}

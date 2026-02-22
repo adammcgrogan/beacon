@@ -1,0 +1,33 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beacon - {{.Title}}</title>
+    <style>
+        body { margin: 0; font-family: -apple-system, sans-serif; background: #121212; color: #eee; display: flex; height: 100vh; }
+        nav { width: 250px; background: #1e1e1e; padding: 20px; border-right: 1px solid #333; }
+        nav h2 { color: #569cd6; margin-top: 0; }
+        nav a { display: block; padding: 10px; color: #ccc; text-decoration: none; margin-bottom: 5px; border-radius: 4px; }
+        nav a:hover { background: #333; }
+        .active { background: #2d2d2d; color: #fff; font-weight: bold; }
+        main { flex: 1; padding: 20px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <nav>
+        <h2>Beacon</h2>
+        <a href="/" class="{{if eq .ActiveTab "dashboard"}}active{{end}}">📊 Dashboard</a>
+        <a href="/console" class="{{if eq .ActiveTab "console"}}active{{end}}">💻 Live Console</a>
+    </nav>
+    <main>
+        {{if eq .ActiveTab "dashboard"}}
+            {{template "dashboard" .}}
+        {{else if eq .ActiveTab "console"}}
+            {{template "console" .}}
+        {{end}}
+    </main>
+</body>
+</html>
+{{end}}
