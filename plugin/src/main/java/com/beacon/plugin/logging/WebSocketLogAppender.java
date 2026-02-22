@@ -36,10 +36,15 @@ public class WebSocketLogAppender extends AbstractAppender {
         if (client == null || !client.isOpen()) return;
 
         String logLevel = event.getLevel().name();
-        String message = stripAnsiCodes(event.getMessage().getFormattedMessage());
+        
+        // Grab the message and strip out any hidden terminal codes
+        String rawMessage = event.getMessage().getFormattedMessage();
+        String cleanMessage = stripAnsiCodes(rawMessage);
+        
         String timestamp = timeFormat.format(new Date(event.getTimeMillis()));
         
-        String logLine = String.format("[%s %s]: %s", timestamp, logLevel, message);
+        // Simple, clean text line
+        String logLine = String.format("[%s %s]: %s", timestamp, logLevel, cleanMessage);
         
         JsonObject payload = new JsonObject();
         payload.addProperty("level", logLevel);
@@ -48,7 +53,11 @@ public class WebSocketLogAppender extends AbstractAppender {
         client.send(ProtocolBuilder.buildEvent("console_log", payload));
     }
 
+    /**
+     * Removes terminal ANSI escape codes from a string to keep the web UI clean.
+     */
     private String stripAnsiCodes(String message) {
+        if (message == null) return "";
         return message.replaceAll("\\x1B\\[[0-9;]*[a-zA-Z]", "");
     }
 }

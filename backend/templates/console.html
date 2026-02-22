@@ -38,7 +38,6 @@
             const cmd = input.value.trim();
             if (cmd && ws.readyState === WebSocket.OPEN) {
                 appendLog('> ' + cmd, 'INFO');
-
                 commandHistory.push(cmd);
                 historyIndex = commandHistory.length;
 
@@ -48,11 +47,12 @@
                 }));
                 
                 input.value = ''; 
-                scrollToBottom(); // Always snap to bottom when *you* send a command
+                scrollToBottom();
             }
         }
 
         btn.addEventListener('click', sendCommand);
+        
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 sendCommand();
@@ -80,7 +80,7 @@
 
         function scrollToBottom() {
             logsContainer.scrollTop = logsContainer.scrollHeight;
-            newMsgBtn.style.display = 'none'; // Hide the button when we scroll down
+            newMsgBtn.style.display = 'none';
         }
 
         logsContainer.addEventListener('scroll', () => {
@@ -94,14 +94,15 @@
         function appendLog(message, levelClass) {
             const div = document.createElement('div');
             
+            // Simple line coloring based on level
             if (levelClass === 'ERROR' || levelClass === 'FATAL') div.style.color = '#f44747';
             else if (levelClass === 'WARN') div.style.color = '#ce9178';
             else div.style.color = '#b5cea8';
             
+            // Safely set text content (no HTML parsing)
             div.textContent = message;
             
             const wasAtBottom = isAtBottom();
-            
             logsContainer.appendChild(div);
 
             if (wasAtBottom) {

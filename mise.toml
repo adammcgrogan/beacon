@@ -18,7 +18,7 @@ echo "✅ Plugin built and copied to server/plugins/"
 description = "Starts the local Minecraft server"
 dir = "server"
 depends = ["build"]
-run = "java -Xmx2G -Xms2G -jar paper.jar nogui"
+run = "java -Xmx2G -Xms2G -Dterminal.ansi=true -jar paper.jar nogui"
 
 [tasks.dev]
 description = "Runs the build, starts the Minecraft server, and starts the Go controller"
