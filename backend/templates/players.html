@@ -2,7 +2,7 @@
     <div class="flex justify-between items-end mb-6">
         <div>
             <h1 class="text-2xl font-bold text-white">Online Players</h1>
-            <p class="text-zinc-500 text-sm" id="player-count">Managing {{.Stats.Players}} online entities.</p>
+            <p class="text-zinc-500 text-sm" id="player-count">{{.Stats.Players}} player online.</p>
         </div>
         <input type="text" id="player-search" placeholder="Search by name or UUID..." 
             class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-80">
@@ -45,7 +45,7 @@
                 return sortAsc ? (vA < vB ? -1 : 1) : (vA < vB ? 1 : -1);
             });
 
-            tbody.innerHTML = filtered.length ? '' : '<tr><td colspan="5" class="px-6 py-10 text-center text-zinc-600 italic">No matching players online.</td></tr>';
+            tbody.innerHTML = filtered.length ? '' : '<tr><td colspan="5" class="px-6 py-10 text-center text-zinc-600 italic">No players found.</td></tr>';
             
             filtered.forEach(p => {
                 const row = `
@@ -76,7 +76,7 @@
             const d = JSON.parse(e.data);
             if(d.event === 'server_stats') {
                 players = d.payload.player_list || [];
-                countHeader.textContent = `Managing ${d.payload.players} online entities.`;
+                countHeader.textContent = `${d.payload.players} players online.`;
                 render();
             }
         };
