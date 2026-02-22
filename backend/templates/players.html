@@ -2,7 +2,7 @@
     <div class="flex justify-between items-end mb-6">
         <div>
             <h1 class="text-2xl font-bold text-white">Online Players</h1>
-            <p class="text-zinc-500 text-sm" id="player-count">{{.Stats.Players}} player online.</p>
+            <p class="text-zinc-500 text-sm" id="player-count">Managing {{.Stats.Players}} online entities.</p>
         </div>
         <input type="text" id="player-search" placeholder="Search by name or UUID..." 
             class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-80">
@@ -10,7 +10,7 @@
 
     <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden shadow-sm">
         <table class="w-full text-left text-sm">
-            <thead class="bg-[#09090b] text-zinc-500 font-medium uppercase text-[11px] tracking-wider border-bottom border-zinc-800">
+            <thead class="bg-[#09090b] text-zinc-500 font-medium uppercase text-[11px] tracking-wider border-b border-zinc-800">
                 <tr>
                     <th class="px-6 py-4">Player</th>
                     <th class="px-6 py-4 cursor-pointer hover:text-white" onclick="setSort('ping')">Ping ↕</th>
@@ -45,7 +45,7 @@
                 return sortAsc ? (vA < vB ? -1 : 1) : (vA < vB ? 1 : -1);
             });
 
-            tbody.innerHTML = filtered.length ? '' : '<tr><td colspan="5" class="px-6 py-10 text-center text-zinc-600 italic">No players found.</td></tr>';
+            tbody.innerHTML = filtered.length ? '' : '<tr><td colspan="5" class="px-6 py-10 text-center text-zinc-600 italic">No matching players online.</td></tr>';
             
             filtered.forEach(p => {
                 const row = `
@@ -62,21 +62,43 @@
                         </td>
                         <td class="px-6 py-4 text-zinc-400">${Math.floor(p.playtime/1200)}m</td>
                         <td class="px-6 py-4 text-zinc-500 italic">${p.world}</td>
-                        <td class="px-6 py-4 text-right">
-                            <button onclick="kick('${p.name}')" class="text-xs bg-zinc-800 text-zinc-400 px-3 py-1 rounded hover:bg-red-900/30 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100">Kick</button>
+                        <td class="px-6 py-4 text-right space-x-2">
+                            <button onclick="kick('${p.name}')" 
+                                class="text-[10px] bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 font-bold uppercase">
+                                Kick
+                            </button>
+                            <button onclick="ban('${p.name}')" 
+                                class="text-[10px] bg-red-600/20 text-red-400 border border-red-600/30 px-2 py-1 rounded hover:bg-red-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 font-bold uppercase">
+                                Ban
+                            </button>
                         </td>
                     </tr>`;
                 tbody.insertAdjacentHTML('beforeend', row);
             });
         }
 
-        function kick(n) { if(confirm(`Kick ${n}?`)) ws.send(JSON.stringify({event:'console_command', command: `kick ${n} Dashboard Kick`})); }
+        function kick(n) { 
+            const reason = prompt(`Enter kick reason for ${n}:`, "Kicked via Beacon Dashboard");
+            if (reason !== null) {
+                ws.send(JSON.stringify({
+                    event: 'console_command', 
+                    command: `kick ${n} ${reason}`
+            })); 
+        }
+}
+
+        function ban(n) {
+            const reason = prompt(`Enter ban reason for ${n}:`, "Banned via Beacon Dashboard");
+            if (reason !== null) {
+                ws.send(JSON.stringify({event:'console_command', command: `ban ${n} ${reason}`}));
+            }
+        }
 
         ws.onmessage = (e) => {
             const d = JSON.parse(e.data);
             if(d.event === 'server_stats') {
                 players = d.payload.player_list || [];
-                countHeader.textContent = `${d.payload.players} players online.`;
+                countHeader.textContent = `Managing ${d.payload.players} online entities.`;
                 render();
             }
         };
