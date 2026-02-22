@@ -7,7 +7,6 @@ on:
     branches: [ main ]
 
 jobs:
-  # Check if the Go Backend compiles
   build-go:
     runs-on: ubuntu-latest
     steps:
@@ -16,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.1' # Matches your go.mod
+          go-version: '1.25.1'
           cache-dependency-path: backend/go.sum
 
       - name: Build Backend
@@ -25,7 +24,6 @@ jobs:
           go build -v ./cmd/server/main.go
         working-directory: backend
 
-  # Check if the Java Plugin compiles
   build-java:
     runs-on: ubuntu-latest
     steps:
