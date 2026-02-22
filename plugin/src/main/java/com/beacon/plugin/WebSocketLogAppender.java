@@ -1,4 +1,4 @@
-package com.mcdash.plugin;
+package com.beacon.plugin;
 
 import com.google.gson.JsonObject;
 import org.apache.logging.log4j.LogManager;
@@ -20,7 +20,7 @@ public class WebSocketLogAppender extends AbstractAppender {
      * * @param webSocketClient The connected client ready to send JSON payloads.
      */
     public WebSocketLogAppender(WebSocketClient webSocketClient) {
-        super("MCDashLogAppender", null, null, false, null);
+        super("BeaconLogAppender", null, null, false, null);
         this.webSocketClient = webSocketClient;
         this.timeFormat = new SimpleDateFormat("HH:mm:ss");
     }

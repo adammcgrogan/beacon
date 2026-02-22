@@ -1,5 +1,5 @@
-name: MCDash
+name: Beacon
 version: 1.0
-main: com.mcdash.plugin.MCDashPlugin
+main: com.beacon.plugin.BeaconPlugin
 api-version: '1.21'
-description: Connects the server to the MCDash Go Backend
+description: Connects the server to the Beacon Go Backend

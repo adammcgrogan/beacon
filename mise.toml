@@ -10,7 +10,7 @@ run = """
 #!/usr/bin/env bash
 mvn clean package
 mkdir -p ../server/plugins
-cp target/MCDashPlugin-1.0.jar ../server/plugins/
+cp target/BeaconPlugin-1.0.jar ../server/plugins/
 echo "✅ Plugin built and copied to server/plugins/"
 """
 

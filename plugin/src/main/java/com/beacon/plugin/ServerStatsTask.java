@@ -1,4 +1,4 @@
-package com.mcdash.plugin;
+package com.beacon.plugin;
 
 import com.google.gson.JsonObject;
 import org.bukkit.Bukkit;

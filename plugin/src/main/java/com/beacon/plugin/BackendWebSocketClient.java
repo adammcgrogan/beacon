@@ -1,4 +1,4 @@
-package com.mcdash.plugin;
+package com.beacon.plugin;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -10,9 +10,9 @@ import java.net.URI;
 
 public class BackendWebSocketClient extends WebSocketClient {
     
-    private final MCDashPlugin plugin;
+    private final BeaconPlugin plugin;
 
-    public BackendWebSocketClient(URI serverUri, MCDashPlugin plugin) {
+    public BackendWebSocketClient(URI serverUri, BeaconPlugin plugin) {
         super(serverUri);
         this.plugin = plugin;
     }

@@ -1,10 +1,10 @@
-package com.mcdash.plugin;
+package com.beacon.plugin;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-public class MCDashPlugin extends JavaPlugin {
+public class BeaconPlugin extends JavaPlugin {
     
     private BackendWebSocketClient webSocketClient;
     private WebSocketLogAppender logAppender;
@@ -15,7 +15,7 @@ public class MCDashPlugin extends JavaPlugin {
      */
     @Override
     public void onEnable() {
-        getLogger().info("MCDash Plugin is starting! Attempting to connect to Go backend...");
+        getLogger().info("Beacon Plugin is starting! Attempting to connect to Go backend...");
         connectToWebSocket();
     }
 
@@ -34,7 +34,7 @@ public class MCDashPlugin extends JavaPlugin {
             webSocketClient.close();
         }
         
-        getLogger().info("MCDash Plugin disabled. Connection closed.");
+        getLogger().info("Beacon Plugin disabled. Connection closed.");
     }
 
     /**
