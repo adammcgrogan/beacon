@@ -13,6 +13,8 @@ var tmpl = template.Must(template.ParseGlob("templates/*.html"))
 func main() {
 	server := NewDashboardServer()
 
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
 	// Page Routes
 	http.HandleFunc("/", server.HandleDashboard)
 	http.HandleFunc("/console", server.HandleConsole)

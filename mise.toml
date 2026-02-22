@@ -1,4 +1,4 @@
-[tasks.go-controller]
+[tasks.backend]
 description = "Starts the Go backend controller"
 dir = "backend" 
 run = "go run ."
@@ -22,4 +22,4 @@ run = "java -Xmx2G -Xms2G -jar paper.jar nogui"
 
 [tasks.dev]
 description = "Runs the build, starts the Minecraft server, and starts the Go controller"
-depends = ["go-controller", "minecraft"]
+depends = ["backend", "minecraft"]
