@@ -2,6 +2,7 @@
 
 plugin/target/
 plugin/dependency-reduced-pom.xml
+**/target/
 
 backend/backend
 *.exe
