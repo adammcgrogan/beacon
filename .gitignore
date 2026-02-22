@@ -1,0 +1,9 @@
+.vscode/
+
+plugin/target/
+plugin/dependency-reduced-pom.xml
+
+backend/backend
+*.exe
+
+server/

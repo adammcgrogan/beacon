@@ -1,0 +1,25 @@
+[tasks.go-controller]
+description = "Starts the Go backend controller"
+dir = "backend" 
+run = "go run main.go"
+
+[tasks.build]
+description = "Compiles the Spigot plugin and copies it to the server"
+dir = "plugin"
+run = """
+#!/usr/bin/env bash
+mvn clean package
+mkdir -p ../server/plugins
+cp target/MCDashPlugin-1.0.jar ../server/plugins/
+echo "✅ Plugin built and copied to server/plugins/"
+"""
+
+[tasks.minecraft]
+description = "Starts the local Minecraft server"
+dir = "server"
+depends = ["build"]
+run = "java -Xmx2G -Xms2G -jar paper.jar nogui"
+
+[tasks.dev]
+description = "Runs the build, starts the Minecraft server, and starts the Go controller"
+depends = ["go-controller", "minecraft"]

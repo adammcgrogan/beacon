@@ -1,0 +1,5 @@
+name: MCDash
+version: 1.0
+main: com.mcdash.plugin.MCDashPlugin
+api-version: '1.21'
+description: Connects the server to the MCDash Go Backend

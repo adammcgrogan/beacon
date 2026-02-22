@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCDash Live Logs</title>
+    <style>
+        body {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 { color: #569cd6; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        #logs-container {
+            height: 80vh;
+            overflow-y: auto;
+            background: #000;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        .log-line { margin: 2px 0; }
+        .level-INFO { color: #b5cea8; }
+        .level-WARN { color: #ce9178; }
+        .level-ERROR { color: #f44747; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>MCDash - Live Console</h1>
+    <div id="logs-container"></div>
+
+    <script>
+        const logsContainer = document.getElementById('logs-container');
+        const ws = new WebSocket('ws://localhost:8080/ws/web');
+
+        ws.onopen = () => {
+            appendLog('[SYSTEM]: Connected to Go Backend Dashboard...', 'INFO');
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.event === 'console_log') {
+                // Now we just pass the exact message directly to the screen!
+                appendLog(data.payload.message, data.payload.level);
+            }
+        };
+
+        ws.onclose = () => {
+            appendLog('[SYSTEM]: Disconnected from server.', 'ERROR');
+        };
+
+        // Notice we removed the "prefix" variable here
+        function appendLog(message, levelClass) {
+            const div = document.createElement('div');
+            div.className = `log-line level-${levelClass}`;
+            div.textContent = message; // Just print exactly what Java sent
+            logsContainer.appendChild(div);
+            
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>
