@@ -1,7 +1,7 @@
 package store
 
 import (
-	"mcdash/internal/models"
+	"github.com/adammcgrogan/beacon/internal/models"
 	"sync"
 )
 

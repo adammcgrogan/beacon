@@ -1,7 +1,13 @@
 {{define "console"}}
     <h1>Live Console</h1>
     
-    <div id="logs-container" style="height: 70vh; overflow-y: auto; background: #000; padding: 15px; border-radius: 5px; font-family: monospace; margin-bottom: 15px;"></div>
+    <div style="position: relative; margin-bottom: 15px;">
+        <div id="logs-container" style="height: 70vh; overflow-y: auto; background: #000; padding: 15px; border-radius: 5px; font-family: monospace; padding-bottom: 40px;"></div>
+        
+        <button id="new-msg-btn" style="display: none; position: absolute; bottom: 20px; right: 30px; background: #569cd6; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
+            ↓ New Messages
+        </button>
+    </div>
 
     <div style="display: flex; gap: 10px;">
         <input type="text" id="cmd-input" autocomplete="off" placeholder="Enter command..." style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace;">
@@ -12,6 +18,7 @@
         const logsContainer = document.getElementById('logs-container');
         const input = document.getElementById('cmd-input');
         const btn = document.getElementById('cmd-btn');
+        const newMsgBtn = document.getElementById('new-msg-btn');
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
 
         let commandHistory = [];
@@ -30,7 +37,6 @@
         function sendCommand() {
             const cmd = input.value.trim();
             if (cmd && ws.readyState === WebSocket.OPEN) {
-                
                 appendLog('> ' + cmd, 'INFO');
 
                 commandHistory.push(cmd);
@@ -42,24 +48,22 @@
                 }));
                 
                 input.value = ''; 
+                scrollToBottom(); // Always snap to bottom when *you* send a command
             }
         }
 
         btn.addEventListener('click', sendCommand);
-        
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 sendCommand();
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault(); 
-                
                 if (commandHistory.length > 0 && historyIndex > 0) {
                     historyIndex--;
                     input.value = commandHistory[historyIndex];
                 }
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                
                 if (historyIndex < commandHistory.length - 1) {
                     historyIndex++;
                     input.value = commandHistory[historyIndex];
@@ -70,6 +74,23 @@
             }
         });
 
+        function isAtBottom() {
+            return logsContainer.scrollHeight - logsContainer.scrollTop - logsContainer.clientHeight <= 50;
+        }
+
+        function scrollToBottom() {
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+            newMsgBtn.style.display = 'none'; // Hide the button when we scroll down
+        }
+
+        logsContainer.addEventListener('scroll', () => {
+            if (isAtBottom()) {
+                newMsgBtn.style.display = 'none';
+            }
+        });
+
+        newMsgBtn.addEventListener('click', scrollToBottom);
+
         function appendLog(message, levelClass) {
             const div = document.createElement('div');
             
@@ -78,8 +99,16 @@
             else div.style.color = '#b5cea8';
             
             div.textContent = message;
+            
+            const wasAtBottom = isAtBottom();
+            
             logsContainer.appendChild(div);
-            logsContainer.scrollTop = logsContainer.scrollHeight;
+
+            if (wasAtBottom) {
+                scrollToBottom();
+            } else {
+                newMsgBtn.style.display = 'block';
+            }
         }
     </script>
 {{end}}

@@ -4,7 +4,7 @@ import (
 	"html/template"
 	"net/http"
 
-	"mcdash/internal/store"
+	"github.com/adammcgrogan/beacon/internal/store"
 )
 
 // Note: Ensure the path to templates points to the correct relative or absolute directory

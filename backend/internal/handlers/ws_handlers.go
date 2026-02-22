@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"sync"
 
-	"mcdash/internal/models"
-	"mcdash/internal/store"
+	"github.com/adammcgrogan/beacon/internal/models"
+	"github.com/adammcgrogan/beacon/internal/store"
 
 	"github.com/gorilla/websocket"
 )
