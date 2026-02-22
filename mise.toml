@@ -1,7 +1,7 @@
 [tasks.go-controller]
 description = "Starts the Go backend controller"
 dir = "backend" 
-run = "go run main.go"
+run = "go run ."
 
 [tasks.build]
 description = "Compiles the Spigot plugin and copies it to the server"
