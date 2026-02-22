@@ -1,8 +1,12 @@
 {{define "console"}}
     <h1>Live Console</h1>
     
-    <div style="margin-bottom: 10px;">
-        <input type="text" id="search-input" autocomplete="off" placeholder="🔍 Search logs..." style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace; box-sizing: border-box;">
+    <div style="margin-bottom: 10px; display: flex; gap: 10px;">
+        <input type="text" id="search-input" autocomplete="off" placeholder="🔍 Search logs..." style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #fff; font-family: monospace; box-sizing: border-box;">
+        
+        <button onclick="clearConsole()" style="background: #2d2d2d; color: #888; border: 1px solid #444; padding: 0 15px; border-radius: 5px; cursor: pointer; font-family: monospace; font-size: 0.85em; white-space: nowrap;">
+            Clear View
+        </button>
     </div>
 
     <div style="position: relative; margin-bottom: 15px;">
@@ -136,6 +140,11 @@
                     newMsgBtn.style.display = 'block';
                 }
             }
+        }
+
+        function clearConsole() {
+            logsContainer.innerHTML = '';
+            appendLog('[SYSTEM]: Console view cleared locally.', 'INFO');
         }
     </script>
 {{end}}
