@@ -15,13 +15,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.1'
+          go-version: '1.25.1' 
           cache-dependency-path: backend/go.sum
 
       - name: Build Backend
         run: |
           go mod download
-          go build -v ./cmd/server/main.go
+          go build -v ./...
         working-directory: backend
 
   build-java:
