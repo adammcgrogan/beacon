@@ -2,7 +2,9 @@
 
 **Beacon** is a lightweight, real-time web monitoring and management suite for Minecraft servers. It provides server administrators with a live tap into their server's console, health metrics, world data, and player activity through a sleek, modern web dashboard.
 
-![System Overview](assets/ss_overview.png)
+<div align="center">
+  <img src="assets/ss_overview.png" alt="System Overview" width="800" />
+</div>
 
 ---
 
@@ -17,14 +19,20 @@ The command center for your server's health and performance.
 * **Environment Info:** Instantly see your server's OS, Java version, and exact Paper build number.
 
 ### 🌍 World Manager
-![World Manager](assets/ss_worldmanager.png)
+<div align="center">
+  <img src="assets/ss_worldmanager.png" alt="World Manager" width="800" />
+</div>
+
 Monitor and manipulate individual dimensions on the fly.
 * **Live Dimension Metrics:** View active players, loaded chunks, and entity counts per world.
 * **Environment Controls:** Instantly snap the time to Day/Night or toggle the weather directly via the dashboard.
 * **Time Tracking:** Watch the in-game clock tick in real-time.
 
 ### 👥 Player Management
-![Players List](assets/ss_players.png)
+<div align="center">
+  <img src="assets/ss_players.png" alt="Players List" width="800" />
+</div>
+
 A dedicated interface for monitoring and moderating your community.
 * **Live Roster:** View all connected players, their ping, playtime, and dimension.
 * **Quick Actions:** Hover over any player to quickly **Kick** or **Ban** them with custom reasons.
@@ -32,7 +40,10 @@ A dedicated interface for monitoring and moderating your community.
 * **Instant Search & Sort:** Filter players by name/UUID or sort by highest ping/playtime.
 
 ### 💻 Live Console
-![Live Console](assets/ss_console.png)
+<div align="center">
+  <img src="assets/ss_console.png" alt="Live Console" width="800" />
+</div>
+
 A seamless, two-way bridge to your server console.
 * **Real-Time Streaming:** Console logs are streamed instantly from the server to the dashboard.
 * **Log History:** The backend maintains a buffer of the last 1,000 log lines, providing full context even after refreshing the page.
