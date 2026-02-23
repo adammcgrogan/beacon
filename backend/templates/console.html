@@ -4,11 +4,33 @@
             <h1 class="text-2xl font-bold text-white">Live Console</h1>
             <p id="console-status" class="text-zinc-500 text-sm">Waiting for plugin connection...</p>
         </div>
-        <div class="flex gap-2">
+        
+        <div class="flex items-center gap-2">
+            <div class="flex bg-[#121214] border border-zinc-800 rounded-lg p-0.5 gap-0.5 shadow-sm">
+                <button id="filter-info" onclick="toggleLogFilter('INFO')" 
+                    class="px-2.5 py-1 rounded-md text-[11px] font-bold text-white hover:bg-zinc-800 transition-all duration-200 active:scale-95 outline-none uppercase tracking-wider">
+                    INFO
+                </button>
+                <button id="filter-warn" onclick="toggleLogFilter('WARN')" 
+                    class="px-2.5 py-1 rounded-md text-[11px] font-bold text-amber-500/80 hover:bg-amber-500/5 transition-all duration-200 active:scale-95 outline-none uppercase tracking-wider">
+                    WARN
+                </button>
+                <button id="filter-error" onclick="toggleLogFilter('ERROR')" 
+                    class="px-2.5 py-1 rounded-md text-[11px] font-bold text-red-500/80 hover:bg-red-500/5 transition-all duration-200 active:scale-95 outline-none uppercase tracking-wider">
+                    ERROR
+                </button>
+            </div>
+
             <input type="text" id="search-input" placeholder="Search logs..." 
                 class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-64 disabled:opacity-50 disabled:cursor-not-allowed">
-            <button id="share-logs-btn" class="text-xs bg-blue-600/20 text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-600/30 px-3 py-2 rounded-lg transition-all">Share Logs</button>
-            <button onclick="clearConsole()" class="text-xs text-zinc-500 hover:text-white border border-zinc-800 px-3 py-2 rounded-lg transition-colors">Clear Console</button>
+            
+            <button id="share-logs-btn" class="text-xs bg-blue-600/20 text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-600/30 px-3 py-2 rounded-lg transition-all">
+                Share Logs
+            </button>
+            
+            <button onclick="clearConsole()" class="text-xs text-zinc-500 hover:text-white border border-zinc-800 px-3 py-2 rounded-lg transition-colors">
+                Clear Console
+            </button>
         </div>
     </div>
 
@@ -48,6 +70,57 @@
         let lastLogMessage = null;
         let lastLogElement = null;
         let lastLogCount = 1;
+
+        let logFilters = { INFO: true, WARN: true, ERROR: true, SEVERE: true };
+
+        let activeLogFilter = null;
+
+        // --- FILTER LOGIC ---
+        function toggleLogFilter(targetLevel) {
+            activeLogFilter = (activeLogFilter === targetLevel) ? null : targetLevel;
+
+            const levels = [
+                { id: 'INFO', active: 'bg-zinc-800 ring-1 ring-zinc-700' },
+                { id: 'WARN', active: 'bg-amber-500/10 ring-1 ring-amber-500/40 text-amber-400' },
+                { id: 'ERROR', active: 'bg-red-500/10 ring-1 ring-red-500/40 text-red-400' }
+            ];
+
+            levels.forEach(lvl => {
+                const btn = document.getElementById(`filter-${lvl.id.toLowerCase()}`);
+                const activeClasses = lvl.active.split(' ');
+
+                if (activeLogFilter === lvl.id) {
+                    btn.classList.add(...activeClasses);
+                    btn.classList.remove('opacity-40', 'grayscale-[50%]');
+                } else if (activeLogFilter === null) {
+                    btn.classList.remove(...activeClasses, 'opacity-40', 'grayscale-[50%]');
+                } else {
+                    btn.classList.remove(...activeClasses);
+                    btn.classList.add('opacity-40', 'grayscale-[50%]');
+                }
+            });
+
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const query = searchInput.value.toLowerCase();
+            
+            Array.from(logsContainer.children).forEach(log => {
+                const level = log.dataset.level || 'INFO';
+                const msgText = log.firstElementChild ? log.firstElementChild.textContent.toLowerCase() : log.textContent.toLowerCase();
+                
+                const matchesSearch = !query || msgText.includes(query);
+                
+                const matchesLevel = (activeLogFilter === null) || 
+                                     (level === activeLogFilter) || 
+                                     (activeLogFilter === 'ERROR' && level === 'SEVERE');
+                
+                log.classList.toggle('hidden', !(matchesSearch && matchesLevel));
+            });
+        }
+
+        searchInput.oninput = applyFilters;
 
         // --- 2. UI FUNCTIONS ---
         function setCommandControlsEnabled(enabled) {
@@ -95,7 +168,8 @@
             const div = document.createElement('div');
             const color = level === 'ERROR' ? 'text-red-400' : level === 'WARN' ? 'text-amber-300' : 'text-zinc-400';
             div.className = `${color} hover:bg-zinc-900/50 px-1 rounded transition-colors flex justify-between`;
-            
+            div.dataset.level = level || 'INFO';
+
             const textSpan = document.createElement('span');
             textSpan.className = 'break-all';
             textSpan.textContent = message;
@@ -105,7 +179,16 @@
             
             // Apply current search filter
             const query = searchInput.value.toLowerCase();
-            if (query && !message.toLowerCase().includes(query)) div.classList.add('hidden');
+            const matchesSearch = !query || message.toLowerCase().includes(query);
+            const msgLevel = div.dataset.level;
+            
+            const matchesLevel = (activeLogFilter === null) || 
+                                 (msgLevel === activeLogFilter) || 
+                                 (activeLogFilter === 'ERROR' && msgLevel === 'SEVERE');
+            
+            if (!(matchesSearch && matchesLevel)) {
+                div.classList.add('hidden');
+            }
             
             logsContainer.appendChild(div);
 
@@ -144,15 +227,6 @@
             if (e.key === 'Enter') executeCommand();
             if (e.key === 'ArrowUp' && historyIndex > 0) input.value = commandHistory[--historyIndex];
             if (e.key === 'ArrowDown') input.value = ++historyIndex < commandHistory.length ? commandHistory[historyIndex] : "";
-        };
-
-        searchInput.oninput = () => {
-            const query = searchInput.value.toLowerCase();
-            Array.from(logsContainer.children).forEach(log => {
-                // Ensure we check the textContent of the first span (the actual message), not the badge
-                const msgText = log.firstElementChild ? log.firstElementChild.textContent.toLowerCase() : log.textContent.toLowerCase();
-                log.classList.toggle('hidden', query && !msgText.includes(query));
-            });
         };
 
         newMsgBtn.onclick = () => { 
