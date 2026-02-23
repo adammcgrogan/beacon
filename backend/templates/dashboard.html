@@ -26,27 +26,7 @@
         </div>
     </div>
 
-    <h2 class="text-lg font-bold text-white mb-4">Quick Management</h2>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button onclick="sendCmd('save-all')" class="bg-zinc-900 border border-zinc-800 p-4 rounded-lg text-left hover:bg-zinc-800 transition-all group">
-            <div class="text-white font-medium mb-1 group-hover:text-blue-400">Save World</div>
-            <div class="text-xs text-zinc-500">Force an immediate world data flush.</div>
-        </button>
-        <button onclick="sendCmd('reload confirm')" class="bg-zinc-900 border border-zinc-800 p-4 rounded-lg text-left hover:bg-zinc-800 transition-all group">
-            <div class="text-white font-medium mb-1 group-hover:text-amber-400">Reload Configs</div>
-            <div class="text-xs text-zinc-500">Hot-reload all plugin configurations.</div>
-        </button>
-        <button onclick="sendCmd('stop')" class="bg-red-950/20 border border-red-900/30 p-4 rounded-lg text-left hover:bg-red-900/20 transition-all group">
-            <div class="text-red-400 font-medium mb-1">Shut Down</div>
-            <div class="text-xs text-red-900/70">Safely stop the server instance.</div>
-        </button>
-    </div>
-
     <script>
-        const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
-        function sendCmd(cmd) {
-            if(confirm(`Execute /${cmd}?`)) ws.send(JSON.stringify({event: 'console_command', command: cmd}));
-        }
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.event === 'server_stats') {

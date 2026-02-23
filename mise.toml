@@ -8,9 +8,10 @@ description = "Compiles the Spigot plugin and copies it to the server"
 dir = "plugin"
 run = """
 #!/usr/bin/env bash
-mvn clean package
+chmod +x gradlew
+./gradlew shadowJar
 mkdir -p ../server/plugins
-cp target/BeaconPlugin-1.0.jar ../server/plugins/
+cp build/libs/*-all.jar ../server/plugins/
 echo "✅ Plugin built and copied to server/plugins/"
 """
 
