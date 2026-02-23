@@ -7,6 +7,7 @@
         <div class="flex gap-2">
             <input type="text" id="search-input" placeholder="Search logs..." 
                 class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-64 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button id="share-logs-btn" class="text-xs bg-blue-600/20 text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-600/30 px-3 py-2 rounded-lg transition-all">Share Logs</button>
             <button onclick="clearConsole()" class="text-xs text-zinc-500 hover:text-white border border-zinc-800 px-3 py-2 rounded-lg transition-colors">Clear Console</button>
         </div>
     </div>
@@ -132,5 +133,64 @@
                 ws.send(JSON.stringify({ event: 'plugin_status_request' }));
             }
         }, 2000);
+
+        const shareBtn = document.getElementById('share-logs-btn');
+
+        shareBtn.onclick = async () => {
+            // 1. Gather the text from the console (only visible/unfiltered logs)
+            const logElements = Array.from(logsContainer.children);
+            const visibleLogs = logElements.filter(el => !el.classList.contains('hidden'));
+            
+            if (visibleLogs.length === 0) {
+                alert("No logs to share!");
+                return;
+            }
+
+            const logText = visibleLogs.map(el => el.textContent).join('\n');
+
+            // 2. Change button state to loading
+            const originalText = shareBtn.textContent;
+            shareBtn.textContent = 'Uploading...';
+            shareBtn.disabled = true;
+
+            try {
+                // 3. Send to mclo.gs API
+                const response = await fetch('https://api.mclo.gs/1/log', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `content=${encodeURIComponent(logText)}`
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // 4. Copy URL to clipboard and notify user
+                    await navigator.clipboard.writeText(data.url);
+                    
+                    // Add a temporary success message to the console
+                    appendLog(`[Beacon] Logs shared successfully! Link copied to clipboard: ${data.url}`, 'INFO');
+                    
+                    shareBtn.textContent = 'Copied Link!';
+                    shareBtn.classList.replace('text-blue-400', 'text-emerald-400');
+                    shareBtn.classList.replace('bg-blue-600/20', 'bg-emerald-600/20');
+                    shareBtn.classList.replace('border-blue-600/30', 'border-emerald-600/30');
+                } else {
+                    throw new Error('Upload failed');
+                }
+            } catch (error) {
+                appendLog(`[Beacon] Failed to share logs: ${error.message}`, 'ERROR');
+                shareBtn.textContent = 'Failed';
+            } finally {
+                // 5. Reset button after 3 seconds
+                setTimeout(() => {
+                    shareBtn.textContent = originalText;
+                    shareBtn.disabled = false;
+                    shareBtn.className = 'text-xs bg-blue-600/20 text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-600/30 px-3 py-2 rounded-lg transition-all';
+                }, 3000);
+            }
+        };
+
     </script>
 {{end}}
