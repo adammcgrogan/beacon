@@ -34,8 +34,12 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: 'maven'
+          cache: 'gradle'
+
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x gradlew
+        working-directory: plugin
 
       - name: Build Plugin
-        run: mvn clean package
+        run: ./gradlew build
         working-directory: plugin
