@@ -19,6 +19,7 @@ type WebSocketManager struct {
 	webClients  map[*websocket.Conn]bool
 	clientsLock sync.Mutex
 	mcConn      *websocket.Conn
+	mcConnLock  sync.RWMutex
 }
 
 // HandleMinecraft handles the connection from the Java plugin
@@ -29,9 +30,10 @@ func (m *WebSocketManager) HandleMinecraft(w http.ResponseWriter, r *http.Reques
 	}
 	defer conn.Close()
 
-	m.mcConn = conn
+	m.setMinecraftConn(conn)
 	m.Store.ClearLogs()
 	fmt.Println("🟢 Minecraft Server Connected!")
+	m.broadcastPluginStatus(true)
 
 	for {
 		_, messageBytes, err := conn.ReadMessage()
@@ -42,7 +44,8 @@ func (m *WebSocketManager) HandleMinecraft(w http.ResponseWriter, r *http.Reques
 		m.processMinecraftMessage(messageBytes)
 		m.broadcastToWeb(messageBytes)
 	}
-	m.mcConn = nil
+	m.setMinecraftConn(nil)
+	m.broadcastPluginStatus(false)
 }
 
 func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) {
@@ -85,6 +88,7 @@ func (m *WebSocketManager) HandleWeb(w http.ResponseWriter, r *http.Request) {
 
 	m.registerWebClient(conn)
 	defer m.unregisterWebClient(conn)
+	m.sendPluginStatus(conn)
 
 	// Send history on connect
 	for _, msg := range m.Store.GetLogs() {
@@ -97,9 +101,32 @@ func (m *WebSocketManager) HandleWeb(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
+		var envelope struct {
+			Event string `json:"event"`
+		}
+		if err := json.Unmarshal(messageBytes, &envelope); err == nil && envelope.Event == "plugin_status_request" {
+			m.sendPluginStatus(conn)
+			continue
+		}
+
 		// Pass commands from web directly to Minecraft
-		if m.mcConn != nil {
-			m.mcConn.WriteMessage(websocket.TextMessage, messageBytes)
+		if !m.isMinecraftConnected() {
+			conn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
+			continue
+		}
+
+		m.mcConnLock.RLock()
+		mcConn := m.mcConn
+		m.mcConnLock.RUnlock()
+		if mcConn == nil {
+			conn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
+			continue
+		}
+
+		if err := mcConn.WriteMessage(websocket.TextMessage, messageBytes); err != nil {
+			conn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
+			m.setMinecraftConn(nil)
+			m.broadcastPluginStatus(false)
 		}
 	}
 }
@@ -126,4 +153,32 @@ func (m *WebSocketManager) broadcastToWeb(message []byte) {
 	for client := range m.webClients {
 		client.WriteMessage(websocket.TextMessage, message)
 	}
+}
+
+func (m *WebSocketManager) setMinecraftConn(conn *websocket.Conn) {
+	m.mcConnLock.Lock()
+	defer m.mcConnLock.Unlock()
+	m.mcConn = conn
+}
+
+func (m *WebSocketManager) isMinecraftConnected() bool {
+	m.mcConnLock.RLock()
+	defer m.mcConnLock.RUnlock()
+	return m.mcConn != nil
+}
+
+func (m *WebSocketManager) sendPluginStatus(conn *websocket.Conn) {
+	status := "offline"
+	if m.isMinecraftConnected() {
+		status = "online"
+	}
+	conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"event":"plugin_status","payload":{"status":"%s"}}`, status)))
+}
+
+func (m *WebSocketManager) broadcastPluginStatus(online bool) {
+	status := "offline"
+	if online {
+		status = "online"
+	}
+	m.broadcastToWeb([]byte(fmt.Sprintf(`{"event":"plugin_status","payload":{"status":"%s"}}`, status)))
 }

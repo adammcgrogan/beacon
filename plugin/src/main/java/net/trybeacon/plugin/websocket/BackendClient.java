@@ -2,10 +2,7 @@ package net.trybeacon.plugin.websocket;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-
 import net.trybeacon.plugin.BeaconPlugin;
-import net.trybeacon.plugin.tasks.ServerStatsTask;
-
 import org.bukkit.Bukkit;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
@@ -22,9 +19,10 @@ public class BackendClient extends WebSocketClient {
     }
 
     @Override
-    public void onOpen(ServerHandshake handshakedata) {
+    public void onOpen(ServerHandshake handshakeData) {
         plugin.getLogger().info("✅ Connected successfully to Go Backend!");
-        
+        plugin.onBackendConnected(this);
+
         JsonObject envPayload = new JsonObject();
         envPayload.addProperty("software", Bukkit.getName() + " " + Bukkit.getVersion());
         envPayload.addProperty("java", "Java " + System.getProperty("java.version"));
@@ -35,11 +33,6 @@ public class BackendClient extends WebSocketClient {
         envJson.add("payload", envPayload);
 
         this.send(envJson.toString());
-
-        plugin.startLogCapture();
-
-        ServerStatsTask statsTask = new ServerStatsTask(this);
-        Bukkit.getScheduler().runTaskTimer(plugin, statsTask, 0L, 40L);
     }
 
     @Override
@@ -89,10 +82,12 @@ public class BackendClient extends WebSocketClient {
     @Override
     public void onClose(int code, String reason, boolean remote) {
         plugin.getLogger().warning("❌ Disconnected from backend. Reason: " + reason);
+        plugin.onBackendDisconnected(this);
     }
 
     @Override
     public void onError(Exception ex) {
         plugin.getLogger().severe("⚠️ WebSocket error: " + ex.getMessage());
+        plugin.onBackendError(this, ex);
     }
 }

@@ -2,7 +2,7 @@
     <div class="flex justify-between items-end mb-6">
         <div>
             <h1 class="text-2xl font-bold text-white">Live Console</h1>
-            <p class="text-zinc-500 text-sm">Streaming server logs via WebSocket.</p>
+            <p id="console-status" class="text-zinc-500 text-sm">Waiting for plugin connection...</p>
         </div>
         <div class="flex gap-2">
             <input type="text" id="search-input" placeholder="Search logs..." 
@@ -32,12 +32,33 @@
         const logsContainer = document.getElementById('logs-container');
         const input = document.getElementById('cmd-input');
         const searchInput = document.getElementById('search-input');
+        const statusEl = document.getElementById('console-status');
         const btn = document.getElementById('cmd-btn');
         const newMsgBtn = document.getElementById('new-msg-btn');
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
 
         let commandHistory = [];
         let historyIndex = -1;
+        let pluginOnline = false;
+
+        function setCommandControlsEnabled(enabled) {
+            input.disabled = !enabled;
+            btn.disabled = !enabled;
+            btn.classList.toggle('opacity-50', !enabled);
+            btn.classList.toggle('cursor-not-allowed', !enabled);
+        }
+
+        function setPluginStatus(status) {
+            pluginOnline = status === 'online';
+            if (pluginOnline) {
+                statusEl.textContent = 'Server online.';
+                statusEl.className = 'text-emerald-400 text-sm';
+            } else {
+                statusEl.textContent = 'Server offline. Start your server to enable command execution.';
+                statusEl.className = 'text-amber-400 text-sm';
+            }
+            setCommandControlsEnabled(pluginOnline);
+        }
 
         function appendLog(message, level) {
             const div = document.createElement('div');
@@ -62,9 +83,19 @@
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
+            if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
+            if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: plugin is offline.', 'WARN');
+        };
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ event: 'plugin_status_request' }));
         };
 
         function execute() {
+            if (!pluginOnline) {
+                appendLog('[Beacon] Cannot execute command while plugin is offline.', 'WARN');
+                return;
+            }
+
             const cmd = input.value.trim();
             if (cmd) {
                 appendLog(`> ${cmd}`, 'INFO');
@@ -91,5 +122,13 @@
 
         function clearConsole() { logsContainer.innerHTML = ''; }
         newMsgBtn.onclick = () => { logsContainer.scrollTop = logsContainer.scrollHeight; newMsgBtn.classList.add('hidden'); };
+
+        setCommandControlsEnabled(false);
+
+        setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ event: 'plugin_status_request' }));
+            }
+        }, 2000);
     </script>
 {{end}}
