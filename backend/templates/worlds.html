@@ -8,11 +8,13 @@
     </div>
 
     <script>
+        // --- 1. STATE & ELEMENTS ---
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
         const grid = document.getElementById('worlds-grid');
         const statusEl = document.getElementById('worlds-status');
         let pluginOnline = false;
 
+        // --- 2. UI FUNCTIONS ---
         function setPluginStatus(status) {
             pluginOnline = status === 'online';
             if (!pluginOnline) {
@@ -28,6 +30,7 @@
             }
         }
 
+        // Converts Minecraft Ticks to 24-hour HH:MM format
         function formatTime(ticks) {
             let hours = Math.floor(ticks / 1000) + 6;
             let mins = Math.floor((ticks % 1000) / 16.6);
@@ -35,6 +38,7 @@
             return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
         }
 
+        // --- 3. COMMAND ACTIONS ---
         function sendWorldAction(action, worldName) {
             if (!pluginOnline) return;
             ws.send(JSON.stringify({
@@ -43,9 +47,8 @@
             }));
         }
 
-        ws.onopen = () => {
-            ws.send(JSON.stringify({ event: 'plugin_status_request' }));
-        };
+        // --- 4. WEBSOCKET HANDLERS ---
+        ws.onopen = () => ws.send(JSON.stringify({ event: 'plugin_status_request' }));
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
@@ -59,7 +62,11 @@
                 
                 data.payload.forEach(world => {
                     const isDay = world.time < 13000 || world.time > 23000;
-                    const envColor = world.environment === 'NETHER' ? 'text-red-400' : world.environment === 'THE_END' ? 'text-purple-400' : 'text-emerald-400';
+                    
+                    // Assign environment colors
+                    let envColor = 'text-emerald-400';
+                    if (world.environment === 'NETHER') envColor = 'text-red-400';
+                    if (world.environment === 'THE_END') envColor = 'text-purple-400';
                     
                     const card = `
                         <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden shadow-sm flex flex-col">

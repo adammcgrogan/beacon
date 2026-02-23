@@ -25,6 +25,7 @@
     </div>
 
     <script>
+        // --- 1. STATE & ELEMENTS ---
         const tbody = document.getElementById('player-table-body');
         const countHeader = document.getElementById('player-count');
         const searchInput = document.getElementById('player-search');
@@ -35,7 +36,16 @@
         let sortAsc = true;
         let pluginOnline = false;
 
-        function setSort(k) { if(sortKey === k) sortAsc = !sortAsc; else { sortKey = k; sortAsc = true; } render(); }
+        // --- 2. UI FUNCTIONS ---
+        function setSort(key) { 
+            if (sortKey === key) {
+                sortAsc = !sortAsc; 
+            } else { 
+                sortKey = key; 
+                sortAsc = true; 
+            } 
+            renderTable(); 
+        }
 
         function setPluginStatus(status) {
             pluginOnline = status === 'online';
@@ -45,13 +55,13 @@
                 players = [];
                 countHeader.textContent = 'Server offline. Start your server to manage players.';
                 countHeader.className = 'text-amber-400 text-sm';
-                render();
+                renderTable();
             } else {
                 countHeader.className = 'text-zinc-500 text-sm';
             }
         }
 
-        function render() {
+        function renderTable() {
             if (!pluginOnline) {
                 tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-zinc-400 italic">Server offline. Start your server to view online players.</td></tr>';
                 return;
@@ -60,6 +70,7 @@
             const query = searchInput.value.toLowerCase();
             let filtered = players.filter(p => p.name.toLowerCase().includes(query) || p.uuid.toLowerCase().includes(query));
             
+            // Sort logic
             filtered.sort((a,b) => {
                 let vA = a[sortKey], vB = b[sortKey];
                 return sortAsc ? (vA < vB ? -1 : 1) : (vA < vB ? 1 : -1);
@@ -71,7 +82,7 @@
                 const row = `
                     <tr class="hover:bg-zinc-900/40 transition-colors group">
                         <td class="px-6 py-4 flex items-center gap-3">
-                            <img src="https://mc-heads.net/avatar/${p.uuid}/32" class="w-8 h-8 rounded shadow-inner">
+                            <img src="https://mc-heads.net/avatar/${p.uuid}/32" class="w-8 h-8 rounded shadow-inner" alt="${p.name}'s Avatar">
                             <div>
                                 <div class="text-white font-semibold">${p.name}</div>
                                 <div class="text-[10px] text-zinc-600 mono">${p.uuid.substring(0,18)}...</div>
@@ -83,12 +94,10 @@
                         <td class="px-6 py-4 text-zinc-400">${Math.floor(p.playtime/1200)}m</td>
                         <td class="px-6 py-4 text-zinc-500 italic">${p.world}</td>
                         <td class="px-6 py-4 text-right space-x-2">
-                            <button onclick="kick('${p.name}')" 
-                                class="text-[10px] bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 font-bold uppercase">
+                            <button onclick="kickPlayer('${p.name}')" class="text-[10px] bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 font-bold uppercase">
                                 Kick
                             </button>
-                            <button onclick="ban('${p.name}')" 
-                                class="text-[10px] bg-red-600/20 text-red-400 border border-red-600/30 px-2 py-1 rounded hover:bg-red-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 font-bold uppercase">
+                            <button onclick="banPlayer('${p.name}')" class="text-[10px] bg-red-600/20 text-red-400 border border-red-600/30 px-2 py-1 rounded hover:bg-red-600 hover:text-white transition-all opacity-0 group-hover:opacity-100 font-bold uppercase">
                                 Ban
                             </button>
                         </td>
@@ -97,39 +106,41 @@
             });
         }
 
-        function kick(n) { 
+        // --- 3. MODERATION ACTIONS ---
+        function kickPlayer(playerName) { 
             if (!pluginOnline) return;
-            const reason = prompt(`Enter kick reason for ${n}:`, "Kicked via Beacon Dashboard");
+            const reason = prompt(`Enter kick reason for ${playerName}:`, "Kicked via Beacon Dashboard");
             if (reason !== null) {
-                ws.send(JSON.stringify({ event: 'console_command', command: `kick ${n} ${reason}` })); 
+                ws.send(JSON.stringify({ event: 'console_command', command: `kick ${playerName} ${reason}` })); 
             }
         }
 
-        function ban(n) {
+        function banPlayer(playerName) {
             if (!pluginOnline) return;
-            const reason = prompt(`Enter ban reason for ${n}:`, "Banned via Beacon Dashboard");
+            const reason = prompt(`Enter ban reason for ${playerName}:`, "Banned via Beacon Dashboard");
             if (reason !== null) {
-                ws.send(JSON.stringify({ event: 'console_command', command: `ban ${n} ${reason}` }));
+                ws.send(JSON.stringify({ event: 'console_command', command: `ban ${playerName} ${reason}` }));
             }
         }
 
-        ws.onopen = () => {
-            ws.send(JSON.stringify({ event: 'plugin_status_request' }));
-        };
+        // --- 4. WEBSOCKET EVENT HANDLERS ---
+        ws.onopen = () => ws.send(JSON.stringify({ event: 'plugin_status_request' }));
 
         ws.onmessage = (e) => {
-            const d = JSON.parse(e.data);
-            if (d.event === 'plugin_status') {
-                setPluginStatus(d.payload.status);
+            const data = JSON.parse(e.data);
+            
+            if (data.event === 'plugin_status') {
+                setPluginStatus(data.payload.status);
             }
-            if(d.event === 'server_stats' && pluginOnline) {
-                players = d.payload.player_list || [];
-                countHeader.textContent = `Managing ${d.payload.players} online entities.`;
-                render();
+            
+            if (data.event === 'server_stats' && pluginOnline) {
+                players = data.payload.player_list || [];
+                countHeader.textContent = `Managing ${data.payload.players} online entities.`;
+                renderTable();
             }
         };
 
-        searchInput.oninput = render;
+        searchInput.oninput = renderTable;
 
         setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) {

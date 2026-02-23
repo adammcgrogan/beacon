@@ -48,11 +48,9 @@
                     </button>
                     <div class="grid grid-cols-2 gap-3">
                         <button id="btn-restart" onclick="sendPowerCommand('restart')" class="flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500 text-amber-500 hover:text-white border border-amber-500/20 hover:border-amber-500 font-bold py-2.5 rounded-lg transition-all duration-200 group">
-                            <svg class="w-4 h-4 text-amber-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                             Restart
                         </button>
                         <button id="btn-save" onclick="sendPowerCommand('save-all')" class="flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white border border-blue-500/20 hover:border-blue-500 font-bold py-2.5 rounded-lg transition-all duration-200 group">
-                            <svg class="w-4 h-4 text-blue-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
                             Save All
                         </button>
                     </div>
@@ -104,42 +102,33 @@
     </div>
 
     <script>
-        // --- 1. SPARKLINE CHARTS SETUP ---
+        // --- 1. CHARTS SETUP ---
         const commonOptions = {
             responsive: true, 
             maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: { 
-                x: { display: false }, 
-                y: { display: false, min: 0, grace: '20%' } 
-            },
+            scales: { x: { display: false }, y: { display: false, min: 0, grace: '20%' } },
             elements: { point: { radius: 0 }, line: { tension: 0.4, borderWidth: 2 } },
             layout: { padding: 0 }
         };
-        const tpsCtx = document.getElementById('tpsChart').getContext('2d');
-        const tpsChart = new Chart(tpsCtx, {
+
+        const tpsChart = new Chart(document.getElementById('tpsChart').getContext('2d'), {
             type: 'line',
-            data: { 
-                labels: Array(30).fill(''), 
-                datasets: [{ data: Array(30).fill(0), borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true }] 
-            },
+            data: { labels: Array(30).fill(''), datasets: [{ data: Array(30).fill(0), borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true }] },
             options: commonOptions
         });
 
-        const ramCtx = document.getElementById('ramChart').getContext('2d');
-        const ramChart = new Chart(ramCtx, {
+        const ramChart = new Chart(document.getElementById('ramChart').getContext('2d'), {
             type: 'line',
-            data: { 
-                labels: Array(30).fill(''), 
-                datasets: [{ data: Array(30).fill(0), borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', fill: true }] 
-            },
+            data: { labels: Array(30).fill(''), datasets: [{ data: Array(30).fill(0), borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', fill: true }] },
             options: commonOptions
         });
 
-        // --- 2. WEBSOCKET LOGIC ---
+        // --- 2. STATE & WEBSOCKET SETUP ---
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
         let pluginOnline = false;
 
+        // --- 3. UI UPDATE FUNCTIONS ---
         function setPluginStatus(status) {
             pluginOnline = status === 'online';
             
@@ -164,7 +153,6 @@
                     btn.classList.add('opacity-50', 'cursor-not-allowed');
                 });
 
-                // Reset metrics visually to N/A
                 document.getElementById('stat-players').innerHTML = `N/A`;
                 document.getElementById('stat-tps').textContent = 'N/A';
                 document.getElementById('stat-ram').textContent = `N/A`;
@@ -179,6 +167,44 @@
             }
         }
 
+        function parseEventLog(msg, level) {
+            let isEvent = false; let icon = ''; let color = 'text-zinc-400'; let bgBox = 'bg-zinc-800/50';
+
+            if (msg.includes('joined the game')) { 
+                isEvent = true; color = 'text-emerald-400'; bgBox = 'bg-emerald-500/10 border-emerald-500/20';
+                icon = `✨`; 
+            } else if (msg.includes('left the game')) { 
+                isEvent = true; color = 'text-zinc-500'; bgBox = 'bg-zinc-800/50 border-zinc-700/50';
+                icon = `👋`; 
+            } else if (msg.includes('Saved the game')) { 
+                isEvent = true; color = 'text-blue-400'; bgBox = 'bg-blue-500/10 border-blue-500/20';
+                icon = `💾`; 
+            } else if (level === 'WARN') { 
+                isEvent = true; color = 'text-amber-400'; bgBox = 'bg-amber-500/10 border-amber-500/20';
+                icon = `⚠️`; 
+            } else if (level === 'ERROR' || level === 'SEVERE') { 
+                isEvent = true; color = 'text-red-400'; bgBox = 'bg-red-500/10 border-red-500/20';
+                icon = `🛑`; 
+            }
+
+            if (!isEvent) return;
+
+            const feed = document.getElementById('events-feed');
+            const noEventsMsg = document.getElementById('no-events-msg');
+            if (noEventsMsg) noEventsMsg.remove();
+
+            const cleanMsg = msg.substring(msg.indexOf(']:') + 3) || msg;
+            const el = document.createElement('div');
+            el.className = `flex items-center gap-3 text-sm text-zinc-300 bg-[#121214] p-2.5 rounded-lg border border-zinc-800/50 shadow-sm group`;
+            el.innerHTML = `
+                <div class="flex-shrink-0 flex items-center justify-center ${color} ${bgBox} border p-1.5 rounded-md">${icon}</div>
+                <span class="truncate group-hover:text-clip group-hover:whitespace-normal transition-all duration-200 cursor-default leading-none mt-[1px]">${cleanMsg}</span>
+            `;
+            feed.prepend(el);
+            if (feed.children.length > 15) feed.removeChild(feed.lastChild);
+        }
+
+        // --- 4. WEBSOCKET HANDLERS ---
         ws.onopen = () => {
             ws.send(JSON.stringify({ event: 'plugin_status_request' }));
         };
@@ -190,7 +216,6 @@
                 setPluginStatus(data.payload.status);
             }
 
-            // Only process stats if we're online
             if (data.event === 'server_stats' && pluginOnline) {
                 const s = data.payload;
                 document.getElementById('stat-players').innerHTML = `${s.players} <span class="text-zinc-600 text-lg">/ ${s.max_players}</span>`;
@@ -230,47 +255,8 @@
                 });
             }
 
-           if (data.event === 'console_log') {
-                const msg = data.payload.message;
-                const level = data.payload.level;
-                let isEvent = false; let icon = ''; let color = 'text-zinc-400'; let bgBox = 'bg-zinc-800/50';
-
-                if (msg.includes('joined the game')) { 
-                    isEvent = true; color = 'text-emerald-400'; bgBox = 'bg-emerald-500/10 border-emerald-500/20';
-                    icon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`; 
-                }
-                else if (msg.includes('left the game')) { 
-                    isEvent = true; color = 'text-zinc-500'; bgBox = 'bg-zinc-800/50 border-zinc-700/50';
-                    icon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1018 0 9 9 0 00-18 0z"></path></svg>`; 
-                }
-                else if (msg.includes('Saved the game')) { 
-                    isEvent = true; color = 'text-blue-400'; bgBox = 'bg-blue-500/10 border-blue-500/20';
-                    icon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>`; 
-                }
-                else if (level === 'WARN') { 
-                    isEvent = true; color = 'text-amber-400'; bgBox = 'bg-amber-500/10 border-amber-500/20';
-                    icon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`; 
-                }
-                else if (level === 'ERROR' || level === 'SEVERE') { 
-                    isEvent = true; color = 'text-red-400'; bgBox = 'bg-red-500/10 border-red-500/20';
-                    icon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`; 
-                }
-
-                if (isEvent) {
-                    const feed = document.getElementById('events-feed');
-                    const noEventsMsg = document.getElementById('no-events-msg');
-                    if (noEventsMsg) noEventsMsg.remove();
-
-                    const cleanMsg = msg.substring(msg.indexOf(']:') + 3) || msg;
-                    const el = document.createElement('div');
-                    el.className = `flex items-center gap-3 text-sm text-zinc-300 bg-[#121214] p-2.5 rounded-lg border border-zinc-800/50 shadow-sm group`;
-                    el.innerHTML = `
-                        <div class="flex-shrink-0 flex items-center justify-center ${color} ${bgBox} border p-1.5 rounded-md">${icon}</div>
-                        <span class="truncate group-hover:text-clip group-hover:whitespace-normal transition-all duration-200 cursor-default leading-none mt-[1px]">${cleanMsg}</span>
-                    `;
-                    feed.prepend(el);
-                    if (feed.children.length > 15) feed.removeChild(feed.lastChild);
-                }
+            if (data.event === 'console_log') {
+                parseEventLog(data.payload.message, data.payload.level);
             }
             
             if (data.event === 'server_env' && pluginOnline) {
@@ -280,6 +266,7 @@
             }
         };
 
+        // Keep connection alive & verify status
         setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ event: 'plugin_status_request' }));

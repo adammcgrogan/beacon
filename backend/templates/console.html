@@ -30,18 +30,21 @@
     </div>
 
     <script>
+        // --- 1. DOM ELEMENTS & STATE ---
         const logsContainer = document.getElementById('logs-container');
         const input = document.getElementById('cmd-input');
         const searchInput = document.getElementById('search-input');
         const statusEl = document.getElementById('console-status');
         const btn = document.getElementById('cmd-btn');
         const newMsgBtn = document.getElementById('new-msg-btn');
+        const shareBtn = document.getElementById('share-logs-btn');
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
 
         let commandHistory = [];
         let historyIndex = -1;
         let pluginOnline = false;
 
+        // --- 2. UI FUNCTIONS ---
         function setCommandControlsEnabled(enabled) {
             input.disabled = !enabled;
             searchInput.disabled = !enabled;
@@ -53,8 +56,8 @@
         function setPluginStatus(status) {
             pluginOnline = status === 'online';
             if (pluginOnline) {
-                statusEl.textContent = 'Server online.';
-                statusEl.className = 'text-emerald-400 text-sm';
+                statusEl.textContent = 'View real-time server logs and execute commands.';
+                statusEl.className = 'text-zinc-400 text-sm';
             } else {
                 statusEl.textContent = 'Server offline. Start your server to enable command execution.';
                 statusEl.className = 'text-amber-400 text-sm';
@@ -68,12 +71,14 @@
             div.className = `${color} hover:bg-zinc-900/50 px-1 rounded transition-colors`;
             div.textContent = message;
             
+            // Apply current search filter
             const query = searchInput.value.toLowerCase();
             if (query && !message.toLowerCase().includes(query)) div.classList.add('hidden');
             
             const wasAtBottom = logsContainer.scrollHeight - logsContainer.scrollTop - logsContainer.clientHeight <= 100;
             logsContainer.appendChild(div);
 
+            // Auto-scroll if already at bottom, otherwise show unread badge
             if (wasAtBottom) {
                 logsContainer.scrollTop = logsContainer.scrollHeight;
                 newMsgBtn.classList.add('hidden');
@@ -82,19 +87,12 @@
             }
         }
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
-            if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
-            if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: plugin is offline.', 'WARN');
-            if (data.event === 'clear_logs') logsContainer.innerHTML = '';
-        };
-        
-        ws.onopen = () => {
-            ws.send(JSON.stringify({ event: 'plugin_status_request' }));
-        };
+        function clearConsole() { 
+            ws.send(JSON.stringify({ event: 'clear_logs' }));
+        }
 
-        function execute() {
+        // --- 3. EVENT LISTENERS ---
+        function executeCommand() {
             if (!pluginOnline) {
                 appendLog('[Beacon] Cannot execute command while plugin is offline.', 'WARN');
                 return;
@@ -109,9 +107,10 @@
             }
         }
 
-        btn.onclick = execute;
+        btn.onclick = executeCommand;
+        
         input.onkeydown = (e) => {
-            if (e.key === 'Enter') execute();
+            if (e.key === 'Enter') executeCommand();
             if (e.key === 'ArrowUp' && historyIndex > 0) input.value = commandHistory[--historyIndex];
             if (e.key === 'ArrowDown') input.value = ++historyIndex < commandHistory.length ? commandHistory[historyIndex] : "";
         };
@@ -123,60 +122,38 @@
             });
         };
 
-        function clearConsole() { 
-            ws.send(JSON.stringify({ event: 'clear_logs' }));
-        }
-        newMsgBtn.onclick = () => { logsContainer.scrollTop = logsContainer.scrollHeight; newMsgBtn.classList.add('hidden'); };
-
-        setCommandControlsEnabled(false);
-
-        setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ event: 'plugin_status_request' }));
-            }
-        }, 2000);
-
-        const shareBtn = document.getElementById('share-logs-btn');
+        newMsgBtn.onclick = () => { 
+            logsContainer.scrollTop = logsContainer.scrollHeight; 
+            newMsgBtn.classList.add('hidden'); 
+        };
 
         shareBtn.onclick = async () => {
-            // 1. Gather the text from the console (only visible/unfiltered logs)
-            const logElements = Array.from(logsContainer.children);
-            const visibleLogs = logElements.filter(el => !el.classList.contains('hidden'));
-            
+            const visibleLogs = Array.from(logsContainer.children).filter(el => !el.classList.contains('hidden'));
             if (visibleLogs.length === 0) {
                 alert("No logs to share!");
                 return;
             }
 
             const logText = visibleLogs.map(el => el.textContent).join('\n');
-
-            // 2. Change button state to loading
             const originalText = shareBtn.textContent;
+            
             shareBtn.textContent = 'Uploading...';
             shareBtn.disabled = true;
 
             try {
-                // 3. Send to mclo.gs API
                 const response = await fetch('https://api.mclo.gs/1/log', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: `content=${encodeURIComponent(logText)}`
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    // 4. Copy URL to clipboard and notify user
                     await navigator.clipboard.writeText(data.url);
-                    
-                    // Add a temporary success message to the console
-                    appendLog(`[Beacon] Logs shared successfully! Link copied to clipboard: ${data.url}`, 'INFO');
-                    
+                    appendLog(`[Beacon] Logs shared successfully! Link copied: ${data.url}`, 'INFO');
                     shareBtn.textContent = 'Copied Link!';
                     shareBtn.classList.replace('text-blue-400', 'text-emerald-400');
-                    shareBtn.classList.replace('bg-blue-600/20', 'bg-emerald-600/20');
                     shareBtn.classList.replace('border-blue-600/30', 'border-emerald-600/30');
                 } else {
                     throw new Error('Upload failed');
@@ -185,7 +162,6 @@
                 appendLog(`[Beacon] Failed to share logs: ${error.message}`, 'ERROR');
                 shareBtn.textContent = 'Failed';
             } finally {
-                // 5. Reset button after 3 seconds
                 setTimeout(() => {
                     shareBtn.textContent = originalText;
                     shareBtn.disabled = false;
@@ -194,5 +170,22 @@
             }
         };
 
+        // --- 4. WEBSOCKET HANDLERS ---
+        ws.onopen = () => ws.send(JSON.stringify({ event: 'plugin_status_request' }));
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
+            if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
+            if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: plugin is offline.', 'WARN');
+            if (data.event === 'clear_logs') logsContainer.innerHTML = '';
+        };
+        
+        setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ event: 'plugin_status_request' }));
+        }, 2000);
+
+        // Init UI state
+        setCommandControlsEnabled(false);
     </script>
 {{end}}
