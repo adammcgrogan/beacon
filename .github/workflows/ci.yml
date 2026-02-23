@@ -6,7 +6,28 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  lint-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.1'
+          cache-dependency-path: backend/go.sum
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: backend
+
   build-go:
     runs-on: ubuntu-latest
     steps:
@@ -18,9 +39,10 @@ jobs:
           go-version: '1.25.1' 
           cache-dependency-path: backend/go.sum
 
-      - name: Build Backend
+      - name: Test and Build Backend
         run: |
           go mod download
+          go test -v ./...  # <-- ADDED: Run Go tests
           go build -v ./...
         working-directory: backend
 
@@ -41,5 +63,6 @@ jobs:
         working-directory: plugin
 
       - name: Build Plugin
+        # Note: './gradlew build' usually runs Java tests automatically!
         run: ./gradlew build
         working-directory: plugin
