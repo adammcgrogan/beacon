@@ -3,23 +3,14 @@ description = "Starts the Go backend controller"
 dir = "backend/cmd/server" 
 run = "go run ."
 
-[tasks.build]
-description = "Compiles the Spigot plugin and copies it to the server"
+[tasks.minecraft]
+description = "Starts the local Minecraft server"
 dir = "plugin"
 run = """
 #!/usr/bin/env bash
 chmod +x gradlew
-./gradlew shadowJar
-mkdir -p ../server/plugins
-cp build/libs/*-all.jar ../server/plugins/
-echo "✅ Plugin built and copied to server/plugins/"
+./gradlew runServer
 """
-
-[tasks.minecraft]
-description = "Starts the local Minecraft server"
-dir = "server"
-depends = ["build"]
-run = "java -Xmx2G -Xms2G -Dterminal.ansi=true -jar paper.jar nogui"
 
 [tasks.dev]
 description = "Runs the build, starts the Minecraft server, and starts the Go controller"
