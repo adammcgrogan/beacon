@@ -44,6 +44,11 @@
         let historyIndex = -1;
         let pluginOnline = false;
 
+        // Spam Collapse State
+        let lastLogMessage = null;
+        let lastLogElement = null;
+        let lastLogCount = 1;
+
         // --- 2. UI FUNCTIONS ---
         function setCommandControlsEnabled(enabled) {
             input.disabled = !enabled;
@@ -56,8 +61,8 @@
         function setPluginStatus(status) {
             pluginOnline = status === 'online';
             if (pluginOnline) {
-                statusEl.textContent = 'View real-time server logs and execute commands.';
-                statusEl.className = 'text-zinc-400 text-sm';
+                statusEl.textContent = 'Server online.';
+                statusEl.className = 'text-emerald-400 text-sm';
             } else {
                 statusEl.textContent = 'Server offline. Start your server to enable command execution.';
                 statusEl.className = 'text-amber-400 text-sm';
@@ -66,16 +71,42 @@
         }
 
         function appendLog(message, level) {
+            const wasAtBottom = logsContainer.scrollHeight - logsContainer.scrollTop - logsContainer.clientHeight <= 100;
+
+            // --- SPAM COLLAPSE LOGIC ---
+            if (lastLogMessage === message && lastLogElement) {
+                lastLogCount++;
+                
+                let badge = lastLogElement.querySelector('.spam-badge');
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'spam-badge ml-3 px-1.5 py-0.5 text-[12px] font-bold bg-zinc-700/80 text-zinc-300 rounded whitespace-nowrap self-start mt-0.5';
+                    lastLogElement.appendChild(badge);
+                }
+                badge.textContent = `x${lastLogCount}`;
+
+                if (wasAtBottom) logsContainer.scrollTop = logsContainer.scrollHeight;
+                return;
+            }
+
+            lastLogMessage = message;
+            lastLogCount = 1;
+
             const div = document.createElement('div');
             const color = level === 'ERROR' ? 'text-red-400' : level === 'WARN' ? 'text-amber-300' : 'text-zinc-400';
-            div.className = `${color} hover:bg-zinc-900/50 px-1 rounded transition-colors`;
-            div.textContent = message;
+            div.className = `${color} hover:bg-zinc-900/50 px-1 rounded transition-colors flex justify-between`;
+            
+            const textSpan = document.createElement('span');
+            textSpan.className = 'break-all';
+            textSpan.textContent = message;
+            div.appendChild(textSpan);
+
+            lastLogElement = div;
             
             // Apply current search filter
             const query = searchInput.value.toLowerCase();
             if (query && !message.toLowerCase().includes(query)) div.classList.add('hidden');
             
-            const wasAtBottom = logsContainer.scrollHeight - logsContainer.scrollTop - logsContainer.clientHeight <= 100;
             logsContainer.appendChild(div);
 
             // Auto-scroll if already at bottom, otherwise show unread badge
@@ -118,7 +149,9 @@
         searchInput.oninput = () => {
             const query = searchInput.value.toLowerCase();
             Array.from(logsContainer.children).forEach(log => {
-                log.classList.toggle('hidden', query && !log.textContent.toLowerCase().includes(query));
+                // Ensure we check the textContent of the first span (the actual message), not the badge
+                const msgText = log.firstElementChild ? log.firstElementChild.textContent.toLowerCase() : log.textContent.toLowerCase();
+                log.classList.toggle('hidden', query && !msgText.includes(query));
             });
         };
 
@@ -134,7 +167,12 @@
                 return;
             }
 
-            const logText = visibleLogs.map(el => el.textContent).join('\n');
+            const logText = visibleLogs.map(el => {
+                const msg = el.firstElementChild ? el.firstElementChild.textContent : el.textContent;
+                const badge = el.querySelector('.spam-badge');
+                return badge ? `${msg} [${badge.textContent}]` : msg;
+            }).join('\n');
+
             const originalText = shareBtn.textContent;
             
             shareBtn.textContent = 'Uploading...';
@@ -178,7 +216,12 @@
             if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
             if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
             if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: plugin is offline.', 'WARN');
-            if (data.event === 'clear_logs') logsContainer.innerHTML = '';
+            if (data.event === 'clear_logs') {
+                logsContainer.innerHTML = '';
+                lastLogMessage = null;
+                lastLogElement = null;
+                lastLogCount = 1;
+            }
         };
         
         setInterval(() => {
