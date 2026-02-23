@@ -1,8 +1,9 @@
 package store
 
 import (
-	"github.com/adammcgrogan/beacon/internal/models"
 	"sync"
+
+	"github.com/adammcgrogan/beacon/internal/models"
 )
 
 // ServerStore holds all thread-safe data for the application
@@ -10,12 +11,14 @@ type ServerStore struct {
 	mu          sync.RWMutex
 	latestStats models.ServerStats
 	logHistory  [][]byte
+	worlds      []models.WorldInfo
 }
 
 func New() *ServerStore {
 	return &ServerStore{
 		latestStats: models.ServerStats{TPS: "0.00"},
 		logHistory:  make([][]byte, 0),
+		worlds:      make([]models.WorldInfo, 0),
 	}
 }
 
@@ -50,4 +53,16 @@ func (s *ServerStore) ClearLogs() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.logHistory = make([][]byte, 0)
+}
+
+func (s *ServerStore) UpdateWorlds(w []models.WorldInfo) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.worlds = w
+}
+
+func (s *ServerStore) GetWorlds() []models.WorldInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.worlds
 }

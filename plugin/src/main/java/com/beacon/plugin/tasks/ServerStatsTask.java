@@ -44,6 +44,25 @@ public class ServerStatsTask implements Runnable {
             playerArray.add(playerObj);
         }
         
+        JsonArray worldArray = new JsonArray();
+        for (org.bukkit.World w : Bukkit.getWorlds()) {
+            JsonObject worldObj = new JsonObject();
+            worldObj.addProperty("name", w.getName());
+            worldObj.addProperty("environment", w.getEnvironment().name());
+            worldObj.addProperty("players", w.getPlayers().size());
+            worldObj.addProperty("chunks", w.getLoadedChunks().length);
+            worldObj.addProperty("entities", w.getEntities().size());
+            worldObj.addProperty("time", w.getTime());
+            worldObj.addProperty("storming", w.hasStorm());
+            worldArray.add(worldObj);
+        }
+        
+        // Send a second packet right after server_stats
+        JsonObject worldJson = new JsonObject();
+        worldJson.addProperty("event", "world_stats");
+        worldJson.add("payload", worldArray);
+        webSocketClient.send(worldJson.toString());
+
         payload.add("player_list", playerArray);
 
         JsonObject rootJson = new JsonObject();

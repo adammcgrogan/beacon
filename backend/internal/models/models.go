@@ -17,3 +17,13 @@ type PlayerInfo struct {
 	Playtime  int    `json:"playtime"`
 	World     string `json:"world"`
 }
+
+type WorldInfo struct {
+	Name        string `json:"name"`
+	Environment string `json:"environment"`
+	Players     int    `json:"players"`
+	Chunks      int    `json:"chunks"`
+	Entities    int    `json:"entities"`
+	Time        int64  `json:"time"`
+	Storming    bool   `json:"storming"`
+}

@@ -1,0 +1,80 @@
+{{define "worlds"}}
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-white">World Manager</h1>
+        <p class="text-zinc-500 text-sm">Monitor and control active dimensions.</p>
+    </div>
+
+    <div id="worlds-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        </div>
+
+    <script>
+        const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
+        const grid = document.getElementById('worlds-grid');
+
+        function formatTime(ticks) {
+            let hours = Math.floor(ticks / 1000) + 6;
+            let mins = Math.floor((ticks % 1000) / 16.6);
+            if (hours >= 24) hours -= 24;
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        }
+
+        function sendWorldAction(action, worldName) {
+            ws.send(JSON.stringify({
+                event: 'world_action',
+                payload: { action: action, world: worldName }
+            }));
+        }
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.event === 'world_stats') {
+                grid.innerHTML = ''; // Clear grid
+                
+                data.payload.forEach(world => {
+                    const isDay = world.time < 13000 || world.time > 23000;
+                    const envColor = world.environment === 'NETHER' ? 'text-red-400' : world.environment === 'THE_END' ? 'text-purple-400' : 'text-emerald-400';
+                    
+                    const card = `
+                        <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden shadow-sm flex flex-col">
+                            <div class="p-5 border-b border-zinc-800 flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                        <span class="w-2 h-2 rounded-full ${envColor} bg-current"></span>
+                                        ${world.name}
+                                    </h3>
+                                    <p class="text-xs text-zinc-500 uppercase mt-1">${world.environment}</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm font-medium text-white">${formatTime(world.time)}</div>
+                                    <div class="text-xs text-zinc-500">${isDay ? '☀️ Day' : '🌙 Night'} ${world.storming ? ' | 🌧️ Rain' : ''}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-5 grid grid-cols-3 gap-4 mb-auto">
+                                <div class="text-center">
+                                    <div class="text-xl font-bold text-white">${world.players}</div>
+                                    <div class="text-[10px] uppercase text-zinc-500">Players</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-xl font-bold text-white">${world.chunks}</div>
+                                    <div class="text-[10px] uppercase text-zinc-500">Chunks</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-xl font-bold text-white">${world.entities}</div>
+                                    <div class="text-[10px] uppercase text-zinc-500">Entities</div>
+                                </div>
+                            </div>
+
+                            <div class="p-4 bg-zinc-900/50 border-t border-zinc-800 grid grid-cols-2 gap-2">
+                                <button onclick="sendWorldAction('set_day', '${world.name}')" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded transition-colors">☀️ Set Day</button>
+                                <button onclick="sendWorldAction('set_night', '${world.name}')" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded transition-colors">🌙 Set Night</button>
+                                <button onclick="sendWorldAction('toggle_weather', '${world.name}')" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded transition-colors col-span-2">🌧️ Toggle Weather</button>
+                            </div>
+                        </div>
+                    `;
+                    grid.insertAdjacentHTML('beforeend', card);
+                });
+            }
+        };
+    </script>
+{{end}}

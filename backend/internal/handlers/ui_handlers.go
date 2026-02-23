@@ -24,14 +24,14 @@ func (h *UIHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		"Title":     "Overview",
 		"ActiveTab": "dashboard",
 		"Status":    "Online",
-		"Stats":     h.Store.GetStats(), 
+		"Stats":     h.Store.GetStats(),
 	}
 	tmpl.ExecuteTemplate(w, "base", data)
 }
 
 func (h *UIHandler) HandleConsole(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
-		"Title":     "Live Console", 
+		"Title":     "Live Console",
 		"ActiveTab": "console",
 	}
 	tmpl.ExecuteTemplate(w, "base", data)
@@ -42,6 +42,15 @@ func (h *UIHandler) HandlePlayers(w http.ResponseWriter, r *http.Request) {
 		"Title":     "Player List",
 		"ActiveTab": "players",
 		"Stats":     h.Store.GetStats(),
+	}
+	tmpl.ExecuteTemplate(w, "base", data)
+}
+
+func (h *UIHandler) HandleWorlds(w http.ResponseWriter, r *http.Request) {
+	data := map[string]interface{}{
+		"Title":     "World Manager",
+		"ActiveTab": "worlds",
+		"Worlds":    h.Store.GetWorlds(),
 	}
 	tmpl.ExecuteTemplate(w, "base", data)
 }

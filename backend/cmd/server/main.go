@@ -28,6 +28,7 @@ func main() {
 	http.HandleFunc("/", ui.HandleDashboard)
 	http.HandleFunc("/console", ui.HandleConsole)
 	http.HandleFunc("/players", ui.HandlePlayers)
+	http.HandleFunc("/worlds", ui.HandleWorlds)
 
 	// WebSocket Routes
 	http.HandleFunc("/ws", ws.HandleMinecraft)

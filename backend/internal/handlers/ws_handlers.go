@@ -63,6 +63,11 @@ func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) {
 		}
 	case "console_log":
 		m.Store.AddLog(messageBytes)
+	case "world_stats":
+		var worlds []models.WorldInfo
+		if err := json.Unmarshal(envelope.Payload, &worlds); err == nil {
+			m.Store.UpdateWorlds(worlds)
+		}
 	}
 }
 

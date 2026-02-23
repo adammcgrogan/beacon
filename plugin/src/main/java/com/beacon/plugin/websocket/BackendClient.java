@@ -28,7 +28,7 @@ public class BackendClient extends WebSocketClient {
 
         // Start the repeating task to send server stats every 2 seconds (40 ticks)
         ServerStatsTask statsTask = new ServerStatsTask(this);
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, statsTask, 0L, 40L);
+        Bukkit.getScheduler().runTaskTimer(plugin, statsTask, 0L, 40L);
     }
 
     @Override
@@ -45,6 +45,31 @@ public class BackendClient extends WebSocketClient {
                     Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command);
                 });
             }
+
+            if (json.has("event") && json.get("event").getAsString().equals("world_action")) {
+                JsonObject payload = json.getAsJsonObject("payload");
+                String action = payload.get("action").getAsString();
+                String worldName = payload.get("world").getAsString();
+                
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    org.bukkit.World world = Bukkit.getWorld(worldName);
+                    if (world == null) return;
+                    
+                    switch (action) {
+                        case "set_day":
+                            world.setTime(1000);
+                            break;
+                        case "set_night":
+                            world.setTime(13000);
+                            break;
+                        case "toggle_weather":
+                            world.setStorm(!world.hasStorm());
+                            if (!world.hasStorm()) world.setWeatherDuration(0);
+                            break;
+                    }
+                });
+            }
+
         } catch (Exception e) {
             // Ignore messages that aren't valid JSON
         }
