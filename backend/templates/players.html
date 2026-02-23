@@ -2,10 +2,10 @@
     <div class="flex justify-between items-end mb-6">
         <div>
             <h1 class="text-2xl font-bold text-white">Online Players</h1>
-            <p class="text-zinc-500 text-sm" id="player-count">Managing {{.Stats.Players}} online entities.</p>
+            <p class="text-zinc-500 text-sm" id="player-count">Connecting...</p>
         </div>
         <input type="text" id="player-search" placeholder="Search by name or UUID..." 
-            class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-80">
+            class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-80 disabled:opacity-50 disabled:cursor-not-allowed">
     </div>
 
     <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden shadow-sm">
@@ -20,7 +20,7 @@
                 </tr>
             </thead>
             <tbody id="player-table-body" class="divide-y divide-zinc-800">
-                </tbody>
+            </tbody>
         </table>
     </div>
 
@@ -33,10 +33,30 @@
         let players = [];
         let sortKey = 'name';
         let sortAsc = true;
+        let pluginOnline = false;
 
         function setSort(k) { if(sortKey === k) sortAsc = !sortAsc; else { sortKey = k; sortAsc = true; } render(); }
 
+        function setPluginStatus(status) {
+            pluginOnline = status === 'online';
+            searchInput.disabled = !pluginOnline;
+
+            if (!pluginOnline) {
+                players = [];
+                countHeader.textContent = 'Server offline. Start your server to manage players.';
+                countHeader.className = 'text-amber-400 text-sm';
+                render();
+            } else {
+                countHeader.className = 'text-zinc-500 text-sm';
+            }
+        }
+
         function render() {
+            if (!pluginOnline) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-zinc-400 italic">Server offline. Start your server to view online players.</td></tr>';
+                return;
+            }
+
             const query = searchInput.value.toLowerCase();
             let filtered = players.filter(p => p.name.toLowerCase().includes(query) || p.uuid.toLowerCase().includes(query));
             
@@ -78,30 +98,43 @@
         }
 
         function kick(n) { 
+            if (!pluginOnline) return;
             const reason = prompt(`Enter kick reason for ${n}:`, "Kicked via Beacon Dashboard");
             if (reason !== null) {
-                ws.send(JSON.stringify({
-                    event: 'console_command', 
-                    command: `kick ${n} ${reason}`
-            })); 
-        }
-}
-
-        function ban(n) {
-            const reason = prompt(`Enter ban reason for ${n}:`, "Banned via Beacon Dashboard");
-            if (reason !== null) {
-                ws.send(JSON.stringify({event:'console_command', command: `ban ${n} ${reason}`}));
+                ws.send(JSON.stringify({ event: 'console_command', command: `kick ${n} ${reason}` })); 
             }
         }
 
+        function ban(n) {
+            if (!pluginOnline) return;
+            const reason = prompt(`Enter ban reason for ${n}:`, "Banned via Beacon Dashboard");
+            if (reason !== null) {
+                ws.send(JSON.stringify({ event: 'console_command', command: `ban ${n} ${reason}` }));
+            }
+        }
+
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ event: 'plugin_status_request' }));
+        };
+
         ws.onmessage = (e) => {
             const d = JSON.parse(e.data);
-            if(d.event === 'server_stats') {
+            if (d.event === 'plugin_status') {
+                setPluginStatus(d.payload.status);
+            }
+            if(d.event === 'server_stats' && pluginOnline) {
                 players = d.payload.player_list || [];
                 countHeader.textContent = `Managing ${d.payload.players} online entities.`;
                 render();
             }
         };
+
         searchInput.oninput = render;
+
+        setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ event: 'plugin_status_request' }));
+            }
+        }, 2000);
     </script>
 {{end}}
