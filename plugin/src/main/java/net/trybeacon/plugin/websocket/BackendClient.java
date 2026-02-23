@@ -1,9 +1,11 @@
-package com.beacon.plugin.websocket;
+package net.trybeacon.plugin.websocket;
 
-import com.beacon.plugin.BeaconPlugin;
-import com.beacon.plugin.tasks.ServerStatsTask;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import net.trybeacon.plugin.BeaconPlugin;
+import net.trybeacon.plugin.tasks.ServerStatsTask;
+
 import org.bukkit.Bukkit;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;

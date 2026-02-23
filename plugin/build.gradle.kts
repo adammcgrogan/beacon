@@ -18,7 +18,7 @@ dependencies {
     compileOnly(libs.log4j)
 }
 
-group = "com.beacon"
+group = "net.trybeacon"
 version = "1.0.0"
 description = "BeaconPlugin"
 java.sourceCompatibility = JavaVersion.VERSION_21

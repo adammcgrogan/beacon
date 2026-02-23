@@ -1,4 +1,4 @@
-package com.beacon.plugin.tasks;
+package net.trybeacon.plugin.tasks;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;

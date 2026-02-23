@@ -1,4 +1,4 @@
-package com.beacon.plugin.util;
+package net.trybeacon.plugin.util;
 
 import com.google.gson.JsonObject;
 

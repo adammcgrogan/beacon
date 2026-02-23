@@ -1,8 +1,9 @@
-package com.beacon.plugin;
+package net.trybeacon.plugin;
 
-import com.beacon.plugin.logging.WebSocketLogAppender;
-import com.beacon.plugin.websocket.BackendClient;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import net.trybeacon.plugin.logging.WebSocketLogAppender;
+import net.trybeacon.plugin.websocket.BackendClient;
 
 import java.net.URI;
 import java.net.URISyntaxException;

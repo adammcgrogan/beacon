@@ -1,5 +1,5 @@
 name: Beacon
 version: 1.0
-main: com.beacon.plugin.BeaconPlugin
+main: net.trybeacon.plugin.BeaconPlugin
 api-version: '1.21'
 description: Connects the server to the Beacon Go Backend

@@ -1,7 +1,9 @@
-package com.beacon.plugin.logging;
+package net.trybeacon.plugin.logging;
 
-import com.beacon.plugin.util.ProtocolBuilder;
 import com.google.gson.JsonObject;
+
+import net.trybeacon.plugin.util.ProtocolBuilder;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.Logger;
