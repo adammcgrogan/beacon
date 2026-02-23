@@ -2,11 +2,16 @@ package store
 
 import (
 	"sync"
+	"time"
 
 	"github.com/adammcgrogan/beacon/internal/models"
 )
 
-const maxLogLines = 1000
+const (
+	MaxLogLines = 1000
+	MaxLogBytes = 5 * 1024 * 1024 // 5MB limit for total memory buffer
+	MaxLogAge   = 1 * time.Hour   // Clear logs if the server has been silent this long
+)
 
 // ServerStore holds all thread-safe data for the application
 type ServerStore struct {
@@ -16,6 +21,9 @@ type ServerStore struct {
 	env         models.ServerEnv
 	worlds      []models.WorldInfo
 	logHistory  [][]byte
+
+	totalBytes  int
+	lastLogTime time.Time
 }
 
 func New() *ServerStore {
@@ -24,6 +32,7 @@ func New() *ServerStore {
 		env:         models.ServerEnv{Software: "Awaiting Data...", Java: "Awaiting Data...", OS: "Awaiting Data..."},
 		worlds:      make([]models.WorldInfo, 0),
 		logHistory:  make([][]byte, 0),
+		lastLogTime: time.Now(),
 	}
 }
 
@@ -75,10 +84,24 @@ func (s *ServerStore) AddLog(log []byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if len(s.logHistory) >= maxLogLines {
+	if time.Since(s.lastLogTime) > MaxLogAge && len(s.logHistory) > 0 {
+		s.logHistory = make([][]byte, 0)
+		s.totalBytes = 0
+	}
+
+	if len(s.logHistory) >= MaxLogLines {
+		s.totalBytes -= len(s.logHistory[0])
 		s.logHistory = s.logHistory[1:]
 	}
+
+	s.totalBytes += len(log)
+	for s.totalBytes > MaxLogBytes && len(s.logHistory) > 0 {
+		s.totalBytes -= len(s.logHistory[0])
+		s.logHistory = s.logHistory[1:]
+	}
+
 	s.logHistory = append(s.logHistory, log)
+	s.lastLogTime = time.Now()
 }
 
 func (s *ServerStore) GetLogs() [][]byte {
