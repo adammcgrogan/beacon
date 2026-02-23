@@ -106,23 +106,33 @@
     <script>
         // --- 1. SPARKLINE CHARTS SETUP ---
         const commonOptions = {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true, 
+            maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            scales: { x: { display: false }, y: { display: false, min: 0 } },
-            elements: { point: { radius: 0 }, line: { tension: 0.4, borderWidth: 2 } }
+            scales: { 
+                x: { display: false }, 
+                y: { display: false, min: 0, grace: '20%' } 
+            },
+            elements: { point: { radius: 0 }, line: { tension: 0.4, borderWidth: 2 } },
+            layout: { padding: 0 }
         };
-
         const tpsCtx = document.getElementById('tpsChart').getContext('2d');
         const tpsChart = new Chart(tpsCtx, {
             type: 'line',
-            data: { labels: Array(30).fill(''), datasets: [{ data: Array(30).fill(20), borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true }] },
-            options: { ...commonOptions, scales: { y: { display: false, min: 10, max: 20 } } }
+            data: { 
+                labels: Array(30).fill(''), 
+                datasets: [{ data: Array(30).fill(0), borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true }] 
+            },
+            options: commonOptions
         });
 
         const ramCtx = document.getElementById('ramChart').getContext('2d');
         const ramChart = new Chart(ramCtx, {
             type: 'line',
-            data: { labels: Array(30).fill(''), datasets: [{ data: Array(30).fill(0), borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', fill: true }] },
+            data: { 
+                labels: Array(30).fill(''), 
+                datasets: [{ data: Array(30).fill(0), borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', fill: true }] 
+            },
             options: commonOptions
         });
 
@@ -154,10 +164,10 @@
                     btn.classList.add('opacity-50', 'cursor-not-allowed');
                 });
 
-                // Reset metrics visually
-                document.getElementById('stat-players').innerHTML = `0 <span class="text-zinc-600 text-lg">/ 0</span>`;
-                document.getElementById('stat-tps').textContent = '0.0';
-                document.getElementById('stat-ram').textContent = `0MB`;
+                // Reset metrics visually to N/A
+                document.getElementById('stat-players').innerHTML = `N/A`;
+                document.getElementById('stat-tps').textContent = 'N/A';
+                document.getElementById('stat-ram').textContent = `N/A`;
                 document.getElementById('world-radar-container').innerHTML = '<div class="flex items-center justify-center h-full text-sm text-zinc-600 italic">Server offline.</div>';
             }
         }

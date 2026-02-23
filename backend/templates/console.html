@@ -6,8 +6,8 @@
         </div>
         <div class="flex gap-2">
             <input type="text" id="search-input" placeholder="Search logs..." 
-                class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-64">
-            <button onclick="clearConsole()" class="text-xs text-zinc-500 hover:text-white border border-zinc-800 px-3 py-2 rounded-lg transition-colors">Clear</button>
+                class="bg-zinc-900 border border-zinc-800 text-sm px-4 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 w-64 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button onclick="clearConsole()" class="text-xs text-zinc-500 hover:text-white border border-zinc-800 px-3 py-2 rounded-lg transition-colors">Clear Console</button>
         </div>
     </div>
 
@@ -23,7 +23,7 @@
         <div class="relative flex-1">
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 mono">></span>
             <input type="text" id="cmd-input" placeholder="Enter server command..." 
-                class="w-full bg-[#18181b] border border-zinc-800 rounded-lg pl-8 pr-4 py-3 text-white mono text-sm focus:outline-none focus:border-zinc-600 transition-colors">
+                class="w-full bg-[#18181b] border border-zinc-800 rounded-lg pl-8 pr-4 py-3 text-white mono text-sm focus:outline-none focus:border-zinc-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
         </div>
         <button id="cmd-btn" class="bg-white text-black font-bold px-6 py-3 rounded-lg hover:bg-zinc-200 transition-colors">Execute</button>
     </div>
@@ -43,6 +43,7 @@
 
         function setCommandControlsEnabled(enabled) {
             input.disabled = !enabled;
+            searchInput.disabled = !enabled;
             btn.disabled = !enabled;
             btn.classList.toggle('opacity-50', !enabled);
             btn.classList.toggle('cursor-not-allowed', !enabled);
@@ -86,6 +87,7 @@
             if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
             if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: plugin is offline.', 'WARN');
         };
+        
         ws.onopen = () => {
             ws.send(JSON.stringify({ event: 'plugin_status_request' }));
         };
