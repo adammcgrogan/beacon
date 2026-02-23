@@ -102,11 +102,19 @@ func (m *WebSocketManager) HandleWeb(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var envelope struct {
-			Event string `json:"event"`
+			Event   string `json:"event"`
+			Command string `json:"command"`
 		}
-		if err := json.Unmarshal(messageBytes, &envelope); err == nil && envelope.Event == "plugin_status_request" {
-			m.sendPluginStatus(conn)
-			continue
+
+		if err := json.Unmarshal(messageBytes, &envelope); err == nil {
+			if envelope.Event == "plugin_status_request" {
+				m.sendPluginStatus(conn)
+				continue
+			} else if envelope.Event == "clear_logs" {
+				m.Store.ClearLogs()
+				m.broadcastToWeb([]byte(`{"event":"clear_logs"}`))
+				continue
+			}
 		}
 
 		// Pass commands from web directly to Minecraft
@@ -121,6 +129,14 @@ func (m *WebSocketManager) HandleWeb(w http.ResponseWriter, r *http.Request) {
 		if mcConn == nil {
 			conn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
 			continue
+		}
+
+		if envelope.Event == "console_command" {
+			cmdBytes, _ := json.Marshal("> " + envelope.Command)
+			echoMsg := []byte(fmt.Sprintf(`{"event":"console_log","payload":{"message":%s,"level":"INFO"}}`, string(cmdBytes)))
+
+			m.Store.AddLog(echoMsg)
+			m.broadcastToWeb(echoMsg)
 		}
 
 		if err := mcConn.WriteMessage(websocket.TextMessage, messageBytes); err != nil {

@@ -87,6 +87,7 @@
             if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
             if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
             if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: plugin is offline.', 'WARN');
+            if (data.event === 'clear_logs') logsContainer.innerHTML = '';
         };
         
         ws.onopen = () => {
@@ -101,7 +102,6 @@
 
             const cmd = input.value.trim();
             if (cmd) {
-                appendLog(`> ${cmd}`, 'INFO');
                 commandHistory.push(cmd);
                 historyIndex = commandHistory.length;
                 ws.send(JSON.stringify({event: 'console_command', command: cmd}));
@@ -123,7 +123,9 @@
             });
         };
 
-        function clearConsole() { logsContainer.innerHTML = ''; }
+        function clearConsole() { 
+            ws.send(JSON.stringify({ event: 'clear_logs' }));
+        }
         newMsgBtn.onclick = () => { logsContainer.scrollTop = logsContainer.scrollHeight; newMsgBtn.classList.add('hidden'); };
 
         setCommandControlsEnabled(false);
