@@ -25,10 +25,19 @@ public class BackendClient extends WebSocketClient {
     public void onOpen(ServerHandshake handshakedata) {
         plugin.getLogger().info("✅ Connected successfully to Go Backend!");
         
-        // Tell the main plugin class to start capturing logs now that we are connected
+        JsonObject envPayload = new JsonObject();
+        envPayload.addProperty("software", Bukkit.getName() + " " + Bukkit.getVersion());
+        envPayload.addProperty("java", "Java " + System.getProperty("java.version"));
+        envPayload.addProperty("os", System.getProperty("os.name") + " (" + System.getProperty("os.arch") + ")");
+
+        JsonObject envJson = new JsonObject();
+        envJson.addProperty("event", "server_env");
+        envJson.add("payload", envPayload);
+
+        this.send(envJson.toString());
+
         plugin.startLogCapture();
 
-        // Start the repeating task to send server stats every 2 seconds (40 ticks)
         ServerStatsTask statsTask = new ServerStatsTask(this);
         Bukkit.getScheduler().runTaskTimer(plugin, statsTask, 0L, 40L);
     }

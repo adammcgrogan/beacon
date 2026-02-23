@@ -27,3 +27,9 @@ type WorldInfo struct {
 	Time        int64  `json:"time"`
 	Storming    bool   `json:"storming"`
 }
+
+type ServerEnv struct {
+	Software string `json:"software"`
+	Java     string `json:"java"`
+	OS       string `json:"os"`
+}

@@ -12,6 +12,7 @@ type ServerStore struct {
 	latestStats models.ServerStats
 	logHistory  [][]byte
 	worlds      []models.WorldInfo
+	env         models.ServerEnv
 }
 
 func New() *ServerStore {
@@ -19,6 +20,7 @@ func New() *ServerStore {
 		latestStats: models.ServerStats{TPS: "0.00"},
 		logHistory:  make([][]byte, 0),
 		worlds:      make([]models.WorldInfo, 0),
+		env:         models.ServerEnv{Software: "Awaiting Data...", Java: "Awaiting Data...", OS: "Awaiting Data..."},
 	}
 }
 
@@ -65,4 +67,16 @@ func (s *ServerStore) GetWorlds() []models.WorldInfo {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.worlds
+}
+
+func (s *ServerStore) UpdateEnv(e models.ServerEnv) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.env = e
+}
+
+func (s *ServerStore) GetEnv() models.ServerEnv {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.env
 }

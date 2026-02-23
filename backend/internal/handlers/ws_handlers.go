@@ -68,6 +68,11 @@ func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) {
 		if err := json.Unmarshal(envelope.Payload, &worlds); err == nil {
 			m.Store.UpdateWorlds(worlds)
 		}
+	case "server_env":
+		var env models.ServerEnv
+		if err := json.Unmarshal(envelope.Payload, &env); err == nil {
+			m.Store.UpdateEnv(env)
+		}
 	}
 }
 

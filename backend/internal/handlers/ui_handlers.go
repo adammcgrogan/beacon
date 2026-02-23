@@ -25,6 +25,7 @@ func (h *UIHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) {
 		"ActiveTab": "dashboard",
 		"Status":    "Online",
 		"Stats":     h.Store.GetStats(),
+		"Env":       h.Store.GetEnv(),
 	}
 	tmpl.ExecuteTemplate(w, "base", data)
 }
