@@ -7,17 +7,17 @@ import (
 	"github.com/adammcgrogan/beacon/internal/store"
 )
 
-var tmpl = template.Must(template.ParseGlob("../../templates/*.html"))
-
 type UIHandler struct {
 	Store *store.ServerStore
 	WS    *WebSocketManager
+	Tmpl  *template.Template
 }
 
-func NewUIHandler(s *store.ServerStore, ws *WebSocketManager) *UIHandler {
+func NewUIHandler(s *store.ServerStore, ws *WebSocketManager, tmpl *template.Template) *UIHandler {
 	return &UIHandler{
 		Store: s,
 		WS:    ws,
+		Tmpl:  tmpl,
 	}
 }
 
@@ -31,7 +31,7 @@ func (h *UIHandler) render(w http.ResponseWriter, tabName, title string, extraDa
 		data[k] = v
 	}
 
-	tmpl.ExecuteTemplate(w, "base", data)
+	h.Tmpl.ExecuteTemplate(w, "base", data)
 }
 
 func (h *UIHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -62,5 +62,5 @@ func (h *UIHandler) HandleFiles(w http.ResponseWriter, r *http.Request) {
 		"Title":     "File Manager",
 		"ActiveTab": "files",
 	}
-	tmpl.ExecuteTemplate(w, "base", data)
+	h.Tmpl.ExecuteTemplate(w, "base", data)
 }
