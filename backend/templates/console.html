@@ -43,7 +43,11 @@
     </div>
 
     <div class="mt-4 flex gap-2">
-        <div class="relative flex-1">
+        <div id="cmd-input-wrap" class="relative flex-1">
+            <div id="completion-popup" class="hidden absolute left-0 right-0 bottom-full mb-2 bg-[#111113] border border-zinc-700 rounded-lg shadow-2xl z-20 overflow-hidden">
+                <div class="px-3 py-2 text-[11px] uppercase tracking-wider text-zinc-500 border-b border-zinc-800">Tab Completions</div>
+                <div id="completion-list" class="max-h-52 overflow-y-auto py-1"></div>
+            </div>
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 mono">></span>
             <input type="text" id="cmd-input" placeholder="Enter server command..." 
                 class="w-full bg-[#18181b] border border-zinc-800 rounded-lg pl-8 pr-4 py-3 text-white mono text-sm focus:outline-none focus:border-zinc-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
@@ -54,7 +58,10 @@
     <script>
         // --- 1. DOM ELEMENTS & STATE ---
         const logsContainer = document.getElementById('logs-container');
+        const cmdInputWrap = document.getElementById('cmd-input-wrap');
         const input = document.getElementById('cmd-input');
+        const completionPopup = document.getElementById('completion-popup');
+        const completionList = document.getElementById('completion-list');
         const searchInput = document.getElementById('search-input');
         const statusEl = document.getElementById('console-status');
         const btn = document.getElementById('cmd-btn');
@@ -65,6 +72,10 @@
         let commandHistory = [];
         let historyIndex = -1;
         let pluginOnline = false;
+        let pendingTabRequestId = null;
+        let completionBaseInput = '';
+        let completionCandidates = [];
+        let completionIndex = -1;
 
         // Spam Collapse State
         let lastLogMessage = null;
@@ -129,6 +140,9 @@
             btn.disabled = !enabled;
             btn.classList.toggle('opacity-50', !enabled);
             btn.classList.toggle('cursor-not-allowed', !enabled);
+            if (!enabled) {
+                resetTabCompletionState();
+            }
         }
 
         function setPluginStatus(status) {
@@ -201,19 +215,124 @@
             }
         }
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
-            if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
-            if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: server is offline.', 'WARN');
-        };
-      
-        ws.onopen = () => {
-            ws.send(JSON.stringify({ event: 'plugin_status_request' }));
-        };
-      
         function clearConsole() { 
             ws.send(JSON.stringify({ event: 'clear_logs' }));
+        }
+
+        function resetTabCompletionState() {
+            pendingTabRequestId = null;
+            completionBaseInput = '';
+            completionCandidates = [];
+            completionIndex = -1;
+            renderCompletionPopup();
+        }
+
+        function findCommonPrefix(values) {
+            if (!values || values.length === 0) return '';
+            let prefix = values[0];
+            for (let i = 1; i < values.length; i++) {
+                while (!values[i].startsWith(prefix) && prefix.length > 0) {
+                    prefix = prefix.slice(0, -1);
+                }
+                if (!prefix) break;
+            }
+            return prefix;
+        }
+
+        function applyCompletionAtIndex(newIndex) {
+            completionIndex = newIndex;
+            const candidate = completionCandidates[completionIndex];
+            input.value = candidate ? buildCompletedInput(completionBaseInput, candidate) : input.value;
+            renderCompletionPopup();
+        }
+
+        function buildCompletedInput(baseInput, candidate) {
+            if (baseInput.endsWith(' ')) {
+                return `${baseInput}${candidate}`;
+            }
+
+            const lastSpaceIndex = baseInput.lastIndexOf(' ');
+            const tokenStart = lastSpaceIndex + 1;
+            const currentToken = baseInput.slice(tokenStart);
+
+            // If the candidate matches the token being typed, replace that token.
+            if (currentToken && candidate.toLowerCase().startsWith(currentToken.toLowerCase())) {
+                return `${baseInput.slice(0, tokenStart)}${candidate}`;
+            }
+
+            // Otherwise this is likely a suggestion for the next argument.
+            return `${baseInput} ${candidate}`;
+        }
+
+        function requestTabCompletion() {
+            if (!pluginOnline || ws.readyState !== WebSocket.OPEN) return;
+
+            const command = input.value;
+            if (!command.trim()) return;
+
+            const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            pendingTabRequestId = requestId;
+
+            ws.send(JSON.stringify({
+                event: 'console_tab_complete',
+                request_id: requestId,
+                command
+            }));
+        }
+
+        function handleTabCompletion(reverse = false) {
+            const activeCompletionValue = completionIndex >= 0
+                ? buildCompletedInput(completionBaseInput, completionCandidates[completionIndex])
+                : null;
+
+            if (completionCandidates.length > 0) {
+                if (activeCompletionValue && input.value === activeCompletionValue) {
+                    const direction = reverse ? -1 : 1;
+                    const next = (completionIndex + direction + completionCandidates.length) % completionCandidates.length;
+                    applyCompletionAtIndex(next);
+                } else {
+                    const next = reverse ? completionCandidates.length - 1 : 0;
+                    applyCompletionAtIndex(next);
+                }
+                return;
+            }
+
+            resetTabCompletionState();
+            requestTabCompletion();
+        }
+
+        function renderCompletionPopup() {
+            const shouldShow = pluginOnline && completionCandidates.length > 0;
+            completionPopup.classList.toggle('hidden', !shouldShow);
+            if (!shouldShow) {
+                completionList.innerHTML = '';
+                return;
+            }
+
+            completionList.innerHTML = '';
+            let activeRow = null;
+            completionCandidates.forEach((candidate, index) => {
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'w-full text-left px-3 py-1.5 mono text-sm transition-colors';
+                if (index === completionIndex) {
+                    row.classList.add('bg-blue-500/20', 'text-blue-300');
+                    activeRow = row;
+                } else {
+                    row.classList.add('text-zinc-300', 'hover:bg-zinc-800/80');
+                }
+                row.textContent = candidate;
+                row.addEventListener('mousedown', (event) => {
+                    event.preventDefault();
+                    applyCompletionAtIndex(index);
+                    input.focus();
+                });
+                completionList.appendChild(row);
+            });
+
+            if (activeRow) {
+                activeRow.scrollIntoView({ block: 'nearest' });
+            }
         }
 
         // --- 3. EVENT LISTENERS ---
@@ -229,6 +348,7 @@
                 historyIndex = commandHistory.length;
                 ws.send(JSON.stringify({event: 'console_command', command: cmd}));
                 input.value = '';
+                resetTabCompletionState();
             }
         }
 
@@ -236,9 +356,38 @@
         
         input.onkeydown = (e) => {
             if (e.key === 'Enter') executeCommand();
-            if (e.key === 'ArrowUp' && historyIndex > 0) input.value = commandHistory[--historyIndex];
-            if (e.key === 'ArrowDown') input.value = ++historyIndex < commandHistory.length ? commandHistory[historyIndex] : "";
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                handleTabCompletion(e.shiftKey);
+                return;
+            }
+            if (e.key === 'ArrowUp' && historyIndex > 0) {
+                input.value = commandHistory[--historyIndex];
+                resetTabCompletionState();
+            }
+            if (e.key === 'ArrowDown') {
+                input.value = ++historyIndex < commandHistory.length ? commandHistory[historyIndex] : "";
+                resetTabCompletionState();
+            }
+            if (e.key === 'Escape') resetTabCompletionState();
         };
+
+        input.addEventListener('input', () => {
+            const activeCompletionValue = completionIndex >= 0
+                ? buildCompletedInput(completionBaseInput, completionCandidates[completionIndex])
+                : null;
+            if (completionCandidates.length > 0 && activeCompletionValue && input.value === activeCompletionValue) {
+                return;
+            }
+            resetTabCompletionState();
+        });
+
+        document.addEventListener('mousedown', (event) => {
+            if (completionCandidates.length === 0) return;
+            if (!cmdInputWrap.contains(event.target)) {
+                resetTabCompletionState();
+            }
+        });
 
         newMsgBtn.onclick = () => { 
             logsContainer.scrollTop = logsContainer.scrollHeight; 
@@ -301,6 +450,41 @@
             if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
             if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
             if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: plugin is offline.', 'WARN');
+            if (data.event === 'console_tab_complete_result') {
+                const payload = data.payload || {};
+                if (payload.request_id !== pendingTabRequestId) return;
+
+                pendingTabRequestId = null;
+                completionBaseInput = input.value;
+                completionCandidates = Array.isArray(payload.completions) ? payload.completions : [];
+                completionIndex = -1;
+                renderCompletionPopup();
+
+                if (completionCandidates.length === 0) return;
+
+                if (completionCandidates.length === 1) {
+                    completionIndex = 0;
+                    input.value = buildCompletedInput(completionBaseInput, completionCandidates[0]);
+                    renderCompletionPopup();
+                    return;
+                }
+
+                const commonPrefix = findCommonPrefix(completionCandidates);
+                if (commonPrefix) {
+                    const expandedValue = buildCompletedInput(completionBaseInput, commonPrefix);
+                    if (expandedValue.length > completionBaseInput.length) {
+                        input.value = expandedValue;
+                        renderCompletionPopup();
+                        return;
+                    }
+                }
+
+                if (completionCandidates.length > 0) {
+                    applyCompletionAtIndex(0);
+                } else {
+                    resetTabCompletionState();
+                }
+            }
             if (data.event === 'clear_logs') {
                 logsContainer.innerHTML = '';
                 lastLogMessage = null;
