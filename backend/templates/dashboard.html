@@ -173,9 +173,10 @@
             }
         }
 
-        function sendPowerCommand(cmd) {
+        async function sendPowerCommand(cmd) {
             if (!pluginOnline) return;
-            if (confirm(`Are you sure you want to run /${cmd}?`)) {
+            const confirmed = await window.beaconConfirm(`Are you sure you want to run /${cmd}?`);
+            if (confirmed) {
                 ws.send(JSON.stringify({ event: 'console_command', command: cmd }));
             }
         }
