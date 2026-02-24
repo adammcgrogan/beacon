@@ -13,12 +13,6 @@ import (
 
 var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
-type wsMessage struct {
-	Event   string          `json:"event"`
-	Command string          `json:"command,omitempty"`
-	Payload json.RawMessage `json:"payload,omitempty"`
-}
-
 type WebSocketManager struct {
 	Store       *store.ServerStore
 	webClients  map[*websocket.Conn]bool
@@ -29,17 +23,9 @@ type WebSocketManager struct {
 
 	fileReqLock        sync.Mutex
 	pendingFileReqByID map[string]chan fileManagerResponse
-	Store      *store.ServerStore
-	webClients sync.Map
-
-	mcConn     *websocket.Conn
-	mcConnLock sync.RWMutex
 }
 
-// ==========================================
-// MINECRAFT PLUGIN WEBSOCKET
-// ==========================================
-
+// HandleMinecraft handles the connection from the Java plugin
 func (m *WebSocketManager) HandleMinecraft(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -52,15 +38,15 @@ func (m *WebSocketManager) HandleMinecraft(w http.ResponseWriter, r *http.Reques
 	fmt.Println("🟢 Minecraft Server Connected!")
 	m.broadcastPluginStatus(true)
 
-	// Clean up when connection drops
 	defer func() {
 		m.setMinecraftConn(nil)
+		m.failAllPendingFileRequests("plugin disconnected")
 		m.broadcastPluginStatus(false)
 		fmt.Println("🔴 Minecraft Server Disconnected.")
 	}()
 
 	for {
-		_, msgBytes, err := conn.ReadMessage()
+		_, messageBytes, err := conn.ReadMessage()
 		if err != nil {
 			break
 		}
@@ -70,9 +56,6 @@ func (m *WebSocketManager) HandleMinecraft(w http.ResponseWriter, r *http.Reques
 			m.broadcastToWeb(messageBytes)
 		}
 	}
-	m.setMinecraftConn(nil)
-	m.failAllPendingFileRequests("plugin disconnected")
-	m.broadcastPluginStatus(false)
 }
 
 func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) bool {
@@ -83,31 +66,24 @@ func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) bool {
 
 	if err := json.Unmarshal(messageBytes, &envelope); err != nil {
 		return true
-		m.processMinecraftMessage(msgBytes)
-		m.broadcastToWeb(msgBytes)
-	}
-}
-
-func (m *WebSocketManager) processMinecraftMessage(msgBytes []byte) {
-	var msg wsMessage
-	if err := json.Unmarshal(msgBytes, &msg); err != nil {
-		return
 	}
 
-	switch msg.Event {
+	switch envelope.Event {
 	case "server_stats":
 		var stats models.ServerStats
-		if json.Unmarshal(msg.Payload, &stats) == nil {
+		if err := json.Unmarshal(envelope.Payload, &stats); err == nil {
 			m.Store.UpdateStats(stats)
 		}
+	case "console_log":
+		m.Store.AddLog(messageBytes)
 	case "world_stats":
 		var worlds []models.WorldInfo
-		if json.Unmarshal(msg.Payload, &worlds) == nil {
+		if err := json.Unmarshal(envelope.Payload, &worlds); err == nil {
 			m.Store.UpdateWorlds(worlds)
 		}
 	case "server_env":
 		var env models.ServerEnv
-		if json.Unmarshal(msg.Payload, &env) == nil {
+		if err := json.Unmarshal(envelope.Payload, &env); err == nil {
 			m.Store.UpdateEnv(env)
 		}
 	case "file_manager_response":
@@ -116,109 +92,104 @@ func (m *WebSocketManager) processMinecraftMessage(msgBytes []byte) {
 			m.resolvePendingFileRequest(response)
 		}
 		return false
-	case "console_log":
-		m.Store.AddLog(msgBytes)
 	}
 
 	return true
 }
 
-// ==========================================
-// WEB DASHBOARD WEBSOCKET
-// ==========================================
-
+// HandleWeb handles browser UI connections
 func (m *WebSocketManager) HandleWeb(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 
-	m.webClients.Store(conn, true)
-	defer func() {
-		m.webClients.Delete(conn)
-		conn.Close()
-	}()
-
+	m.registerWebClient(conn)
+	defer m.unregisterWebClient(conn)
 	m.sendPluginStatus(conn)
 
 	// Send latest.log snapshot on connect, then continue with live socket stream.
 	if err := m.sendLatestLogSnapshot(conn); err != nil {
 		// Fallback to in-memory history if file snapshot is unavailable.
 		for _, msg := range m.Store.GetLogs() {
-			conn.WriteMessage(websocket.TextMessage, msg)
+			_ = conn.WriteMessage(websocket.TextMessage, msg)
 		}
-	// Send historical logs on connect
-	for _, logMsg := range m.Store.GetLogs() {
-		conn.WriteMessage(websocket.TextMessage, logMsg)
 	}
 
 	for {
-		_, msgBytes, err := conn.ReadMessage()
+		_, messageBytes, err := conn.ReadMessage()
 		if err != nil {
 			break
 		}
 
-		var msg wsMessage
-		if err := json.Unmarshal(msgBytes, &msg); err != nil {
+		var envelope struct {
+			Event string `json:"event"`
+		}
+		if err := json.Unmarshal(messageBytes, &envelope); err != nil {
 			continue
 		}
 
-		switch msg.Event {
+		switch envelope.Event {
 		case "plugin_status_request":
 			m.sendPluginStatus(conn)
-
+			continue
 		case "clear_logs":
 			m.Store.ClearLogs()
 			m.broadcastToWeb([]byte(`{"event":"clear_logs"}`))
-
-		m.mcWriteLock.Lock()
-		err = mcConn.WriteMessage(websocket.TextMessage, messageBytes)
-		m.mcWriteLock.Unlock()
-		if err != nil {
-			conn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
-			m.setMinecraftConn(nil)
-			m.broadcastPluginStatus(false)
-		case "console_command":
-			m.forwardCommandToMinecraft(conn, msg.Command, msgBytes)
+			continue
 		}
+
+		m.forwardToMinecraft(conn, messageBytes)
 	}
 }
 
-func (m *WebSocketManager) forwardCommandToMinecraft(webConn *websocket.Conn, command string, rawBytes []byte) {
-	m.mcConnLock.RLock()
-	mcConn := m.mcConn
-	m.mcConnLock.RUnlock()
-
-	// Reject if Minecraft plugin isn't connected
-	if mcConn == nil {
-		webConn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
+func (m *WebSocketManager) forwardToMinecraft(webConn *websocket.Conn, raw []byte) {
+	if !m.isMinecraftConnected() {
+		_ = webConn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
 		return
 	}
 
-	// Echo the command back to the web console visually
-	cmdJson, _ := json.Marshal("> " + command)
-	echoMsg := []byte(fmt.Sprintf(`{"event":"console_log","payload":{"message":%s,"level":"INFO"}}`, string(cmdJson)))
-	m.Store.AddLog(echoMsg)
-	m.broadcastToWeb(echoMsg)
+	m.mcConnLock.RLock()
+	mcConn := m.mcConn
+	m.mcConnLock.RUnlock()
+	if mcConn == nil {
+		_ = webConn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
+		return
+	}
 
-	// Send actual command to Minecraft
-	if err := mcConn.WriteMessage(websocket.TextMessage, rawBytes); err != nil {
-		webConn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
+	m.mcWriteLock.Lock()
+	err := mcConn.WriteMessage(websocket.TextMessage, raw)
+	m.mcWriteLock.Unlock()
+	if err != nil {
+		_ = webConn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
 		m.setMinecraftConn(nil)
+		m.failAllPendingFileRequests("plugin disconnected")
 		m.broadcastPluginStatus(false)
 	}
 }
 
-// ==========================================
-// UTILITIES
-// ==========================================
+func (m *WebSocketManager) registerWebClient(conn *websocket.Conn) {
+	m.clientsLock.Lock()
+	defer m.clientsLock.Unlock()
+	if m.webClients == nil {
+		m.webClients = make(map[*websocket.Conn]bool)
+	}
+	m.webClients[conn] = true
+}
+
+func (m *WebSocketManager) unregisterWebClient(conn *websocket.Conn) {
+	m.clientsLock.Lock()
+	defer m.clientsLock.Unlock()
+	delete(m.webClients, conn)
+	_ = conn.Close()
+}
 
 func (m *WebSocketManager) broadcastToWeb(message []byte) {
-	m.webClients.Range(func(key, value interface{}) bool {
-		client := key.(*websocket.Conn)
-		client.WriteMessage(websocket.TextMessage, message)
-		return true // Continue iterating
-	})
+	m.clientsLock.Lock()
+	defer m.clientsLock.Unlock()
+	for client := range m.webClients {
+		_ = client.WriteMessage(websocket.TextMessage, message)
+	}
 }
 
 func (m *WebSocketManager) setMinecraftConn(conn *websocket.Conn) {
@@ -227,16 +198,18 @@ func (m *WebSocketManager) setMinecraftConn(conn *websocket.Conn) {
 	m.mcConn = conn
 }
 
+func (m *WebSocketManager) isMinecraftConnected() bool {
+	m.mcConnLock.RLock()
+	defer m.mcConnLock.RUnlock()
+	return m.mcConn != nil
+}
+
 func (m *WebSocketManager) sendPluginStatus(conn *websocket.Conn) {
 	status := "offline"
-
-	m.mcConnLock.RLock()
-	if m.mcConn != nil {
+	if m.isMinecraftConnected() {
 		status = "online"
 	}
-	m.mcConnLock.RUnlock()
-
-	conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"event":"plugin_status","payload":{"status":"%s"}}`, status)))
+	_ = conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"event":"plugin_status","payload":{"status":"%s"}}`, status)))
 }
 
 func (m *WebSocketManager) broadcastPluginStatus(online bool) {

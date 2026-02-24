@@ -14,7 +14,6 @@ func main() {
 	serverStore := store.New()
 
 	// 2. Initialize our WebSocket manager with access to the store
-	ui := handlers.NewUIHandler(serverStore)
 	ws := &handlers.WebSocketManager{
 		Store: serverStore,
 	}
