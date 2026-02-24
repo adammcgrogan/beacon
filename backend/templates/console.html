@@ -201,6 +201,17 @@
             }
         }
 
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
+            if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
+            if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: server is offline.', 'WARN');
+        };
+      
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ event: 'plugin_status_request' }));
+        };
+      
         function clearConsole() { 
             ws.send(JSON.stringify({ event: 'clear_logs' }));
         }
@@ -208,7 +219,7 @@
         // --- 3. EVENT LISTENERS ---
         function executeCommand() {
             if (!pluginOnline) {
-                appendLog('[Beacon] Cannot execute command while plugin is offline.', 'WARN');
+                appendLog('[Beacon] Cannot execute command while server is offline.', 'WARN');
                 return;
             }
 

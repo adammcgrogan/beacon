@@ -1,0 +1,277 @@
+{{define "files"}}
+    <div class="flex items-end justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-white">File Manager</h1>
+            <p class="text-zinc-500 text-sm">Browse, edit, delete, and download files.</p>
+        </div>
+        <div class="flex gap-2">
+            <button id="save-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Save</button>
+            <button id="download-btn" class="bg-zinc-800 text-zinc-100 font-semibold px-4 py-2 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Download</button>
+            <button id="delete-btn" class="bg-red-600/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Delete</button>
+        </div>
+    </div>
+
+    <div id="path-breadcrumbs" class="mb-4 text-sm text-zinc-400 flex flex-wrap gap-2 items-center"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 h-[72vh]">
+        <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
+            <div class="px-4 py-3 border-b border-zinc-800 text-xs uppercase tracking-wider text-zinc-500">Directory</div>
+            <div id="file-list" class="overflow-y-auto flex-1"></div>
+        </div>
+        <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
+            <div id="editor-header" class="px-4 py-3 border-b border-zinc-800 text-sm text-zinc-400">Select a file to edit.</div>
+            <div id="editor" class="flex-1"></div>
+            <div id="status-bar" class="px-4 py-2 border-t border-zinc-800 text-xs text-zinc-500">Ready.</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+    <script>
+        const fileList = document.getElementById('file-list');
+        const breadcrumbEl = document.getElementById('path-breadcrumbs');
+        const editorHeader = document.getElementById('editor-header');
+        const statusBar = document.getElementById('status-bar');
+        const saveBtn = document.getElementById('save-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const deleteBtn = document.getElementById('delete-btn');
+
+        let editor = null;
+        let loadedPath = '';
+        let isDirectory = true;
+
+        function setStatus(msg, isError = false) {
+            statusBar.textContent = msg;
+            statusBar.className = `px-4 py-2 border-t border-zinc-800 text-xs ${isError ? 'text-red-400' : 'text-zinc-500'}`;
+        }
+
+        function getRoutePath() {
+            const base = '/files';
+            if (window.location.pathname === base) return '';
+            if (!window.location.pathname.startsWith(base + '/')) return '';
+            const raw = window.location.pathname.slice((base + '/').length);
+            if (!raw) return '';
+            return raw.split('/').map(decodeURIComponent).join('/');
+        }
+
+        function routeForPath(path) {
+            if (!path) return '/files';
+            return '/files/' + path.split('/').map(encodeURIComponent).join('/');
+        }
+
+        function parentPath(path) {
+            if (!path) return '';
+            const parts = path.split('/');
+            parts.pop();
+            return parts.join('/');
+        }
+
+        function fileIcon(isDir) {
+            return isDir
+                ? '<svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"></path></svg>'
+                : '<svg class="w-4 h-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+        }
+
+        function formatSize(bytes) {
+            if (typeof bytes !== 'number' || Number.isNaN(bytes)) return '0 B';
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+            return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function updateButtons() {
+            const hasFileLoaded = !isDirectory && !!loadedPath;
+            saveBtn.disabled = !hasFileLoaded || !editor;
+            downloadBtn.disabled = !hasFileLoaded;
+            deleteBtn.disabled = !hasFileLoaded;
+        }
+
+        function renderBreadcrumbs(path) {
+            const parts = path ? path.split('/') : [];
+            let html = `<button class="hover:text-white" data-nav="">root</button>`;
+            let current = '';
+            parts.forEach(part => {
+                current = current ? `${current}/${part}` : part;
+                html += `<span class="text-zinc-600">/</span><button class="hover:text-white" data-nav="${escapeHtml(current)}">${escapeHtml(part)}</button>`;
+            });
+            breadcrumbEl.innerHTML = html;
+            breadcrumbEl.querySelectorAll('[data-nav]').forEach(btn => {
+                btn.onclick = () => navigate(btn.getAttribute('data-nav'));
+            });
+        }
+
+        async function apiFetch(url, options = {}) {
+            const res = await fetch(url, options);
+            if (!res.ok) {
+                let message = `Request failed (${res.status})`;
+                try {
+                    const data = await res.json();
+                    if (data.error) message = data.error;
+                } catch (_) {}
+                throw new Error(message);
+            }
+            return res.json();
+        }
+
+        async function loadDirectory(path) {
+            const data = await apiFetch(`/api/files/list?path=${encodeURIComponent(path)}`);
+            const parent = parentPath(path);
+
+            let rows = '';
+            if (path) {
+                rows += `<button class="w-full text-left flex items-center gap-2 px-4 py-2 hover:bg-zinc-800/70 border-b border-zinc-800 text-zinc-300" data-nav="${escapeHtml(parent)}">${fileIcon(true)} ..</button>`;
+            }
+
+            if (!data.entries.length) {
+                rows += '<div class="px-4 py-6 text-sm text-zinc-500 italic">Directory is empty.</div>';
+            } else {
+                data.entries.forEach(entry => {
+                    rows += `
+                        <button class="w-full text-left flex items-center justify-between gap-3 px-4 py-2 hover:bg-zinc-800/70 border-b border-zinc-800 group" data-path="${escapeHtml(entry.path)}" data-isdir="${entry.is_dir}">
+                            <span class="flex items-center gap-2 min-w-0">
+                                ${fileIcon(entry.is_dir)}
+                                <span class="truncate ${entry.is_dir ? 'text-zinc-100' : 'text-zinc-300'}">${escapeHtml(entry.name)}</span>
+                            </span>
+                            <span class="text-xs text-zinc-600 group-hover:text-zinc-500">${entry.is_dir ? 'dir' : formatSize(entry.size)}</span>
+                        </button>
+                    `;
+                });
+            }
+
+            fileList.innerHTML = rows;
+            fileList.querySelectorAll('[data-path]').forEach(btn => {
+                btn.onclick = () => navigate(btn.getAttribute('data-path'));
+            });
+            fileList.querySelectorAll('[data-nav]').forEach(btn => {
+                btn.onclick = () => navigate(btn.getAttribute('data-nav'));
+            });
+        }
+
+        async function loadFile(path) {
+            const data = await apiFetch(`/api/files/content?path=${encodeURIComponent(path)}`);
+            loadedPath = data.path;
+            editorHeader.textContent = `${data.path} • ${formatSize(data.size)}`;
+            if (editor) {
+                const modelUri = monaco.Uri.file('/' + data.path);
+                let model = monaco.editor.getModel(modelUri);
+                if (model) {
+                    model.setValue(data.content);
+                } else {
+                    model = monaco.editor.createModel(data.content, undefined, modelUri);
+                }
+                editor.setModel(model);
+            }
+            setStatus(`Loaded ${data.name}. Last modified ${data.modified_at}.`);
+        }
+
+        async function hydrate(path) {
+            setStatus('Loading...');
+            renderBreadcrumbs(path);
+            try {
+                const meta = await apiFetch(`/api/files/meta?path=${encodeURIComponent(path)}`);
+                isDirectory = meta.is_dir;
+                loadedPath = '';
+                if (isDirectory) {
+                    editorHeader.textContent = 'Select a file to edit.';
+                    if (editor) editor.setValue('');
+                    await loadDirectory(meta.path);
+                    setStatus(`Viewing directory: ${meta.path || '/'}`);
+                } else {
+                    await loadDirectory(parentPath(meta.path));
+                    await loadFile(meta.path);
+                }
+                updateButtons();
+            } catch (err) {
+                setStatus(err.message, true);
+                fileList.innerHTML = `<div class="px-4 py-6 text-sm text-red-400">${escapeHtml(err.message)}</div>`;
+                editorHeader.textContent = 'Unable to load path.';
+                if (editor) editor.setValue('');
+                loadedPath = '';
+                isDirectory = true;
+                updateButtons();
+            }
+        }
+
+        function navigate(path) {
+            window.history.pushState({}, '', routeForPath(path));
+            hydrate(path);
+        }
+
+        async function saveCurrentFile() {
+            if (!editor || !loadedPath) return;
+            try {
+                setStatus('Saving...');
+                await apiFetch(`/api/files/content?path=${encodeURIComponent(loadedPath)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: editor.getValue() })
+                });
+                setStatus('Saved successfully.');
+            } catch (err) {
+                setStatus(err.message, true);
+            }
+        }
+
+        function downloadCurrentFile() {
+            if (!loadedPath) return;
+            window.location.href = `/api/files/download?path=${encodeURIComponent(loadedPath)}`;
+        }
+
+        async function deleteCurrentFile() {
+            if (!loadedPath) return;
+            if (!confirm(`Delete ${loadedPath}? This action cannot be undone.`)) return;
+            try {
+                await apiFetch(`/api/files?path=${encodeURIComponent(loadedPath)}`, { method: 'DELETE' });
+                const backTo = parentPath(loadedPath);
+                window.history.pushState({}, '', routeForPath(backTo));
+                await hydrate(backTo);
+                setStatus('File deleted.');
+            } catch (err) {
+                setStatus(err.message, true);
+            }
+        }
+
+        saveBtn.onclick = saveCurrentFile;
+        downloadBtn.onclick = downloadCurrentFile;
+        deleteBtn.onclick = deleteCurrentFile;
+
+        document.addEventListener('keydown', (event) => {
+            const isSaveCombo = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+            if (!isSaveCombo) return;
+
+            event.preventDefault();
+            if (!saveBtn.disabled) {
+                saveCurrentFile();
+            }
+        });
+
+        window.onpopstate = () => hydrate(getRoutePath());
+
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs' } });
+        require(['vs/editor/editor.main'], () => {
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: '',
+                language: 'plaintext',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 13
+            });
+            hydrate(getRoutePath());
+            updateButtons();
+        });
+
+        setStatus('Loading Monaco editor...');
+        updateButtons();
+    </script>
+{{end}}

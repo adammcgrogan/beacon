@@ -3,6 +3,7 @@ package net.trybeacon.plugin.websocket;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.trybeacon.plugin.BeaconPlugin;
+import net.trybeacon.plugin.files.FileManagerService;
 import org.bukkit.Bukkit;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
@@ -12,10 +13,12 @@ import java.net.URI;
 public class BackendClient extends WebSocketClient {
     
     private final BeaconPlugin plugin;
+    private final FileManagerService fileManagerService;
 
     public BackendClient(URI serverUri, BeaconPlugin plugin) {
         super(serverUri);
         this.plugin = plugin;
+        this.fileManagerService = new FileManagerService(plugin);
     }
 
     @Override
@@ -74,6 +77,11 @@ public class BackendClient extends WebSocketClient {
                 });
             }
 
+            if (json.has("event") && json.get("event").getAsString().equals("file_manager_request")) {
+                JsonObject payload = json.getAsJsonObject("payload");
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> handleFileManagerRequest(payload));
+            }
+
         } catch (Exception e) {
             // Ignore messages that aren't valid JSON
         }
@@ -89,5 +97,29 @@ public class BackendClient extends WebSocketClient {
     public void onError(Exception ex) {
         plugin.getLogger().severe("⚠️ WebSocket error: " + ex.getMessage());
         plugin.onBackendError(this, ex);
+    }
+
+    private void handleFileManagerRequest(JsonObject payload) {
+        JsonObject responsePayload = new JsonObject();
+        String requestId = payload.has("request_id") ? payload.get("request_id").getAsString() : "";
+        responsePayload.addProperty("request_id", requestId);
+
+        try {
+            String action = payload.get("action").getAsString();
+            String rawPath = payload.has("path") ? payload.get("path").getAsString() : "";
+            String content = payload.has("content") ? payload.get("content").getAsString() : "";
+            JsonObject data = fileManagerService.performAction(action, rawPath, content);
+
+            responsePayload.addProperty("ok", true);
+            responsePayload.add("data", data);
+        } catch (Exception ex) {
+            responsePayload.addProperty("ok", false);
+            responsePayload.addProperty("error", ex.getMessage() == null ? "file operation failed" : ex.getMessage());
+        }
+
+        JsonObject envelope = new JsonObject();
+        envelope.addProperty("event", "file_manager_response");
+        envelope.add("payload", responsePayload);
+        this.send(envelope.toString());
     }
 }
