@@ -1,16 +1,36 @@
 {{define "worlds"}}
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-white">World Manager</h1>
-        <p class="text-zinc-500 text-sm">Monitor and control active dimensions.</p>
+        <p id="worlds-status" class="text-zinc-500 text-sm">Connecting...</p>
     </div>
 
     <div id="worlds-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        </div>
+    </div>
 
     <script>
+        // --- 1. STATE & ELEMENTS ---
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
         const grid = document.getElementById('worlds-grid');
+        const statusEl = document.getElementById('worlds-status');
+        let pluginOnline = false;
 
+        // --- 2. UI FUNCTIONS ---
+        function setPluginStatus(status) {
+            pluginOnline = status === 'online';
+            if (!pluginOnline) {
+                statusEl.textContent = 'Server offline. Start your server to view dimension details.';
+                statusEl.className = 'text-amber-400 text-sm';
+                grid.innerHTML = '<div class="col-span-full py-10 text-center text-zinc-400 italic bg-[#18181b] border border-zinc-800 rounded-xl">Server offline. Start your server to load world data.</div>';
+            } else {
+                statusEl.textContent = 'Monitor and control active dimensions.';
+                statusEl.className = 'text-zinc-500 text-sm';
+                if (grid.innerHTML.includes('Server offline')) {
+                    grid.innerHTML = '<div class="col-span-full py-10 text-center text-zinc-600 italic">Waiting for world data...</div>';
+                }
+            }
+        }
+
+        // Converts Minecraft Ticks to 24-hour HH:MM format
         function formatTime(ticks) {
             let hours = Math.floor(ticks / 1000) + 6;
             let mins = Math.floor((ticks % 1000) / 16.6);
@@ -18,21 +38,35 @@
             return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
         }
 
+        // --- 3. COMMAND ACTIONS ---
         function sendWorldAction(action, worldName) {
+            if (!pluginOnline) return;
             ws.send(JSON.stringify({
                 event: 'world_action',
                 payload: { action: action, world: worldName }
             }));
         }
 
+        // --- 4. WEBSOCKET HANDLERS ---
+        ws.onopen = () => ws.send(JSON.stringify({ event: 'plugin_status_request' }));
+
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            if (data.event === 'world_stats') {
-                grid.innerHTML = ''; // Clear grid
+
+            if (data.event === 'plugin_status') {
+                setPluginStatus(data.payload.status);
+            }
+
+            if (data.event === 'world_stats' && pluginOnline) {
+                grid.innerHTML = ''; 
                 
                 data.payload.forEach(world => {
                     const isDay = world.time < 13000 || world.time > 23000;
-                    const envColor = world.environment === 'NETHER' ? 'text-red-400' : world.environment === 'THE_END' ? 'text-purple-400' : 'text-emerald-400';
+                    
+                    // Assign environment colors
+                    let envColor = 'text-emerald-400';
+                    if (world.environment === 'NETHER') envColor = 'text-red-400';
+                    if (world.environment === 'THE_END') envColor = 'text-purple-400';
                     
                     const card = `
                         <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden shadow-sm flex flex-col">
@@ -76,5 +110,11 @@
                 });
             }
         };
+
+        setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ event: 'plugin_status_request' }));
+            }
+        }, 2000);
     </script>
 {{end}}

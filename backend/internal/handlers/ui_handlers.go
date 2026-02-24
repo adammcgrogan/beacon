@@ -7,7 +7,6 @@ import (
 	"github.com/adammcgrogan/beacon/internal/store"
 )
 
-// Note: Ensure the path to templates points to the correct relative or absolute directory
 var tmpl = template.Must(template.ParseGlob("../../templates/*.html"))
 
 type UIHandler struct {
@@ -22,42 +21,40 @@ func NewUIHandler(s *store.ServerStore, ws *WebSocketManager) *UIHandler {
 	}
 }
 
-func (h *UIHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) {
-	// We no longer need s.statsLock.Lock() here! The Store handles it.
+func (h *UIHandler) render(w http.ResponseWriter, tabName, title string, extraData map[string]interface{}) {
 	data := map[string]interface{}{
-		"Title":     "Overview",
-		"ActiveTab": "dashboard",
-		"Status":    "Online",
-		"Stats":     h.Store.GetStats(),
-		"Env":       h.Store.GetEnv(),
+		"Title":     title,
+		"ActiveTab": tabName,
 	}
+
+	for k, v := range extraData {
+		data[k] = v
+	}
+
 	tmpl.ExecuteTemplate(w, "base", data)
+}
+
+func (h *UIHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) {
+	h.render(w, "dashboard", "Overview", map[string]interface{}{
+		"Stats": h.Store.GetStats(),
+		"Env":   h.Store.GetEnv(),
+	})
 }
 
 func (h *UIHandler) HandleConsole(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
-		"Title":     "Live Console",
-		"ActiveTab": "console",
-	}
-	tmpl.ExecuteTemplate(w, "base", data)
+	h.render(w, "console", "Live Console", nil)
 }
 
 func (h *UIHandler) HandlePlayers(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
-		"Title":     "Player List",
-		"ActiveTab": "players",
-		"Stats":     h.Store.GetStats(),
-	}
-	tmpl.ExecuteTemplate(w, "base", data)
+	h.render(w, "players", "Player List", map[string]interface{}{
+		"Stats": h.Store.GetStats(),
+	})
 }
 
 func (h *UIHandler) HandleWorlds(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
-		"Title":     "World Manager",
-		"ActiveTab": "worlds",
-		"Worlds":    h.Store.GetWorlds(),
-	}
-	tmpl.ExecuteTemplate(w, "base", data)
+	h.render(w, "worlds", "World Manager", map[string]interface{}{
+		"Worlds": h.Store.GetWorlds(),
+	})
 }
 
 func (h *UIHandler) HandleFiles(w http.ResponseWriter, r *http.Request) {

@@ -5,18 +5,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Beacon — {{.Title}}</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    
     <style>
         body { font-family: 'Inter', sans-serif; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .sidebar-link.active { background: #27272a; color: #fff; border-right: 2px solid #3b82f6; }
+        
+        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #09090b; }
         ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-[#09090b] text-zinc-400 antialiased flex h-screen overflow-hidden">
+    
     <nav class="w-64 bg-[#09090b] border-r border-zinc-800 flex flex-col p-4">
         <div class="flex items-center gap-3 px-2 mb-8">
             <img src="/static/logo_bg.png" alt="Logo" class="w-8 h-8 rounded-lg shadow-lg">

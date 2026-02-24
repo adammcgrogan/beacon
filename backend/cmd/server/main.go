@@ -10,10 +10,11 @@ import (
 )
 
 func main() {
-	// 1. Initialize our centralized state/store
+	// 1. Initialize centralized state
 	serverStore := store.New()
 
 	// 2. Initialize our WebSocket manager with access to the store
+	ui := handlers.NewUIHandler(serverStore)
 	ws := &handlers.WebSocketManager{
 		Store: serverStore,
 	}
@@ -24,7 +25,7 @@ func main() {
 	// Static Files (Adjust path based on where you run the binary from)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("../../static"))))
 
-	// Page Routes
+	// 4. Mount Page Routes
 	http.HandleFunc("/", ui.HandleDashboard)
 	http.HandleFunc("/console", ui.HandleConsole)
 	http.HandleFunc("/players", ui.HandlePlayers)
@@ -39,7 +40,7 @@ func main() {
 	http.HandleFunc("/api/files", ui.HandleFilesDelete)
 	http.HandleFunc("/api/files/download", ui.HandleFilesDownload)
 
-	// WebSocket Routes
+	// 5. Mount WebSocket Routes
 	http.HandleFunc("/ws", ws.HandleMinecraft)
 	http.HandleFunc("/ws/web", ws.HandleWeb)
 

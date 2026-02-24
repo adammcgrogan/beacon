@@ -50,3 +50,4 @@ bin/
 backend/backend
 *.exe
 **/target/
+plugin copy/
