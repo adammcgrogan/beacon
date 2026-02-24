@@ -7,114 +7,425 @@
     <div id="worlds-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     </div>
 
+    <div id="panel-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0" onclick="closePanel()"></div>
+    
+    <div id="world-panel" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] md:w-[600px] max-h-[90vh] bg-[#0c0c0e] border border-zinc-800 rounded-2xl shadow-2xl z-50 hidden opacity-0 scale-95 transition-all duration-300 flex flex-col overflow-hidden">
+        
+        <div class="p-6 border-b border-zinc-800 flex justify-between items-start bg-[#121214]">
+            <div>
+                <div class="flex items-center gap-3 mb-1">
+                    <h2 id="panel-title" class="text-2xl font-bold text-white">World Name</h2>
+                    <span id="panel-status" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"></span>
+                </div>
+                <p id="panel-env" class="text-sm text-zinc-500 uppercase tracking-wider">Environment</p>
+            </div>
+            <button onclick="closePanel()" class="text-zinc-500 hover:text-white bg-zinc-800/50 hover:bg-zinc-800 p-2 rounded-lg transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-8">
+            
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-wider">Quick Actions</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="triggerAction('set_day')" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-sm py-2 rounded-lg transition-colors">☀️ Set Day</button>
+                    <button onclick="triggerAction('set_night')" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-sm py-2 rounded-lg transition-colors">🌙 Set Night</button>
+                    <button onclick="triggerAction('toggle_weather')" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-sm py-2 rounded-lg transition-colors">🌧️ Toggle Weather</button>
+                    <button onclick="forceSave(this)" class="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-sm py-2 rounded-lg transition-colors">💾 Force Save</button>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold text-red-500/70 uppercase tracking-wider flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    Danger Zone
+                </h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btn-toggle-load" onclick="toggleWorldLoad()" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 text-sm py-2 rounded-lg transition-colors font-medium">Unload World</button>
+                    <button onclick="promptReset()" class="bg-red-500/10 hover:bg-red-500 border border-red-500/30 text-red-500 hover:text-white text-sm py-2 rounded-lg transition-colors font-medium">Reset Dimension</button>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-wider">World Data</h3>
+                <div class="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 space-y-3 text-sm">
+                    <div class="flex justify-between"><span class="text-zinc-500">Seed</span><span id="panel-seed" class="text-zinc-300 mono">N/A</span></div>
+                    <div class="flex justify-between"><span class="text-zinc-500">Difficulty</span><span id="panel-difficulty" class="text-zinc-300">N/A</span></div>
+                    <div class="flex justify-between"><span class="text-zinc-500">Local Time</span><span id="panel-time" class="text-zinc-300">N/A</span></div>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xs font-bold text-zinc-500 uppercase tracking-wider flex justify-between items-end">
+                    <span>Gamerules</span>
+                    <div class="flex gap-2">
+                        <button onclick="resetGamerules()" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-2 py-1 rounded text-xs transition-colors" title="Reset all to defaults">Reset</button>
+                        <input type="text" id="gamerule-search" placeholder="Search rules..." class="bg-zinc-900 border border-zinc-800 text-xs px-2 py-1 rounded focus:outline-none focus:border-zinc-600 w-32 font-normal text-zinc-300">
+                    </div>
+                </h3>
+                <div id="gamerules-container" class="space-y-2">
+                </div>
+            </div>
+
+        </div>
+    </div>
+
     <script>
-        // --- 1. STATE & ELEMENTS ---
         const ws = new WebSocket('ws://' + window.location.host + '/ws/web');
         const grid = document.getElementById('worlds-grid');
         const statusEl = document.getElementById('worlds-status');
+        
+        // Modal Elements
+        const panel = document.getElementById('world-panel');
+        const backdrop = document.getElementById('panel-backdrop');
+        const gameruleSearch = document.getElementById('gamerule-search');
+        
         let pluginOnline = false;
+        let worldsData = new Map();
+        let activeWorldName = null;
 
-        // --- 2. UI FUNCTIONS ---
+        // Standard vanilla Minecraft defaults
+        const vanillaDefaultGamerules = {
+            announceAdvancements: "true", commandBlockOutput: "true", disableElytraMovementCheck: "false",
+            disableRaids: "false", doDaylightCycle: "true", doEntityDrops: "true", doFireTick: "true",
+            doInsomnia: "true", doImmediateRespawn: "false", doLimitedCrafting: "false", doMobLoot: "true",
+            doMobSpawning: "true", doPatrolSpawning: "true", doTileDrops: "true", doTraderSpawning: "true",
+            doWeatherCycle: "true", drowningDamage: "true", fallDamage: "true", fireDamage: "true",
+            forgiveDeadPlayers: "true", freezeDamage: "true", keepInventory: "false", logAdminCommands: "true",
+            maxCommandChainLength: "65536", maxEntityCramming: "24", mobGriefing: "true", naturalRegeneration: "true",
+            playersSleepingPercentage: "100", randomTickSpeed: "3", reducedDebugInfo: "false",
+            sendCommandFeedback: "true", showDeathMessages: "true", spawnRadius: "10", 
+            spectatorsGenerateChunks: "true", universalAnger: "false"
+        };
+
+        // --- 1. UI UPDATERS ---
         function setPluginStatus(status) {
             pluginOnline = status === 'online';
             if (!pluginOnline) {
-                statusEl.textContent = 'Server offline. Start your server to view dimension details.';
+                statusEl.textContent = 'Server offline.';
                 statusEl.className = 'text-amber-400 text-sm';
-                grid.innerHTML = '<div class="col-span-full py-10 text-center text-zinc-400 italic bg-[#18181b] border border-zinc-800 rounded-xl">Server offline. Start your server to load world data.</div>';
+                grid.innerHTML = '<div class="col-span-full py-10 text-center text-zinc-400 italic bg-[#18181b] border border-zinc-800 rounded-xl">Server offline.</div>';
+                closePanel();
             } else {
-                statusEl.textContent = 'Monitor and control active dimensions.';
+                statusEl.textContent = 'Select a dimension to manage settings and gamerules.';
                 statusEl.className = 'text-zinc-500 text-sm';
-                if (grid.innerHTML.includes('Server offline')) {
-                    grid.innerHTML = '<div class="col-span-full py-10 text-center text-zinc-600 italic">Waiting for world data...</div>';
-                }
+                if (grid.innerHTML.includes('Server offline')) grid.innerHTML = '<div class="col-span-full py-10 text-center text-zinc-600 italic">Waiting for data...</div>';
             }
         }
 
-        // Converts Minecraft Ticks to 24-hour HH:MM format
         function formatTime(ticks) {
+            if (ticks === undefined || ticks === null) return 'N/A';
             let hours = Math.floor(ticks / 1000) + 6;
             let mins = Math.floor((ticks % 1000) / 16.6);
             if (hours >= 24) hours -= 24;
             return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
         }
 
-        // --- 3. COMMAND ACTIONS ---
-        function sendWorldAction(action, worldName) {
-            if (!pluginOnline) return;
-            ws.send(JSON.stringify({
-                event: 'world_action',
-                payload: { action: action, world: worldName }
-            }));
+        // --- 2. GRID RENDERING ---
+        function renderGrid() {
+            grid.innerHTML = ''; 
+            
+            worldsData.forEach(world => {
+                const isDay = world.time < 13000 || world.time > 23000;
+                let envColor = 'text-emerald-400';
+                if (world.environment === 'NETHER') envColor = 'text-red-400';
+                if (world.environment === 'THE_END') envColor = 'text-purple-400';
+                
+                const opacityClass = world.loaded !== false ? 'opacity-100' : 'opacity-50 grayscale hover:grayscale-0';
+                const statusBadge = world.loaded !== false 
+                    ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide">Loaded</span>`
+                    : `<span class="bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide">Unloaded</span>`;
+
+                const card = `
+                    <div onclick="openPanel('${world.name}')" class="relative bg-[#18181b] border border-zinc-800 hover:border-zinc-600 rounded-xl overflow-hidden shadow-sm flex flex-col cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 ${opacityClass} group">
+                        
+                        <div class="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center z-10 pointer-events-none">
+                            <span class="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium border border-zinc-700 shadow-xl">
+                                ✏️ Click to manage
+                            </span>
+                        </div>
+
+                        <div class="p-5 border-b border-zinc-800 flex justify-between items-start bg-gradient-to-b from-zinc-800/10 to-transparent">
+                            <div>
+                                <h3 class="text-lg font-bold text-white flex items-center gap-2 mb-1">
+                                    <span class="w-2 h-2 rounded-full ${envColor} bg-current"></span>
+                                    ${world.name}
+                                </h3>
+                                <div class="flex items-center gap-2">
+                                    <p class="text-[10px] text-zinc-500 uppercase tracking-wider">${world.environment}</p>
+                                    ${statusBadge}
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm font-medium text-white group-hover:text-blue-400 transition-colors">${formatTime(world.time)}</div>
+                                <div class="text-xs text-zinc-500">${isDay ? '☀️ Day' : '🌙 Night'} ${world.storming ? '| 🌧️' : ''}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-5 grid grid-cols-3 gap-4 mb-auto">
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-white">${world.players || 0}</div>
+                                <div class="text-[10px] uppercase text-zinc-500">Players</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-white">${world.chunks || 0}</div>
+                                <div class="text-[10px] uppercase text-zinc-500">Chunks</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-xl font-bold text-white">${world.entities || 0}</div>
+                                <div class="text-[10px] uppercase text-zinc-500">Entities</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.insertAdjacentHTML('beforeend', card);
+            });
         }
 
-        // --- 4. WEBSOCKET HANDLERS ---
+        // --- 3. MODAL LOGIC ---
+        function openPanel(worldName) {
+            activeWorldName = worldName;
+            updatePanelContent();
+            
+            backdrop.classList.remove('hidden');
+            panel.classList.remove('hidden');
+            
+            setTimeout(() => {
+                backdrop.classList.remove('opacity-0');
+                panel.classList.remove('opacity-0', 'scale-95');
+                panel.classList.add('opacity-100', 'scale-100');
+            }, 10);
+        }
+
+        function closePanel() {
+            activeWorldName = null;
+            
+            backdrop.classList.add('opacity-0');
+            panel.classList.remove('opacity-100', 'scale-100');
+            panel.classList.add('opacity-0', 'scale-95');
+            
+            setTimeout(() => {
+                backdrop.classList.add('hidden');
+                panel.classList.add('hidden');
+            }, 300);
+        }
+
+        function updatePanelContent() {
+            if (!activeWorldName || !worldsData.has(activeWorldName)) return;
+            const world = worldsData.get(activeWorldName);
+
+            // Header Info
+            document.getElementById('panel-title').textContent = world.name;
+            document.getElementById('panel-env').textContent = world.environment;
+            
+            const statusEl = document.getElementById('panel-status');
+            if (world.loaded !== false) {
+                statusEl.textContent = 'Active';
+                statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            } else {
+                statusEl.textContent = 'Unloaded';
+                statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-zinc-500/10 text-zinc-400 border border-zinc-500/20';
+            }
+
+            // Stats
+            document.getElementById('panel-seed').textContent = world.seed || 'Unknown';
+            document.getElementById('panel-difficulty').textContent = world.difficulty || 'Unknown';
+            document.getElementById('panel-time').textContent = formatTime(world.time);
+
+            // Load/Unload Button State
+            const loadBtn = document.getElementById('btn-toggle-load');
+            if (world.loaded !== false) {
+                loadBtn.textContent = 'Unload World';
+                loadBtn.className = 'bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 text-sm py-2 rounded-lg transition-colors font-medium';
+            } else {
+                loadBtn.textContent = 'Load World';
+                loadBtn.className = 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm py-2 rounded-lg transition-colors font-medium';
+            }
+
+            renderGamerules(world.gamerules);
+        }
+
+        function renderGamerules(gamerules) {
+            // Prevent the 2-second WebSocket refresh from rebuilding the HTML 
+            // and deleting the input box while the user is actively typing in it.
+            if (document.activeElement && document.activeElement.id && document.activeElement.id.startsWith('gr-')) {
+                return;
+            }
+
+            const container = document.getElementById('gamerules-container');
+            if (!gamerules || Object.keys(gamerules).length === 0) {
+                container.innerHTML = '<p class="text-sm text-zinc-600 italic">No gamerule data available.</p>';
+                return;
+            }
+
+            const query = gameruleSearch.value.toLowerCase();
+            let html = '';
+
+            const sortedRules = Object.keys(gamerules).sort();
+
+            sortedRules.forEach(rule => {
+                if (query && !rule.toLowerCase().includes(query)) return;
+                
+                const val = gamerules[rule];
+                const isBool = val === 'true' || val === 'false';
+
+                html += `<div class="flex justify-between items-center p-3 bg-zinc-900/30 border border-zinc-800/50 rounded-lg hover:border-zinc-700 transition-colors">`;
+                html += `<span class="text-sm text-zinc-300 mono truncate pr-4" title="${rule}">${rule}</span>`;
+
+                if (isBool) {
+                    const isTrue = val === 'true';
+                    
+                    const trueClass = isTrue 
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' 
+                        : 'bg-zinc-900/50 text-zinc-600 border-zinc-800 hover:text-emerald-500/60 hover:border-emerald-500/30';
+                        
+                    const falseClass = !isTrue 
+                        ? 'bg-red-500/20 text-red-400 border-red-500/40' 
+                        : 'bg-zinc-900/50 text-zinc-600 border-zinc-800 hover:text-red-500/60 hover:border-red-500/30';
+
+                    html += `
+                        <div class="flex gap-1 flex-shrink-0">
+                            <button onclick="sendGamerule('${rule}', 'true')" 
+                                class="px-3 py-1 text-[10px] font-bold rounded border transition-all uppercase tracking-wider w-14 ${trueClass}">
+                                TRUE
+                            </button>
+                            <button onclick="sendGamerule('${rule}', 'false')" 
+                                class="px-3 py-1 text-[10px] font-bold rounded border transition-all uppercase tracking-wider w-14 ${falseClass}">
+                                FALSE
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="flex gap-2 flex-shrink-0">
+                            <input type="number" id="gr-${rule}" value="${val}" 
+                                onkeydown="if(event.key === 'Enter') saveNumericGamerule('${rule}', this.nextElementSibling)"
+                                class="w-16 bg-[#09090b] border border-zinc-700 text-zinc-300 text-xs px-2 py-1 rounded focus:outline-none focus:border-blue-500 text-center font-mono transition-colors">
+                            <button onclick="saveNumericGamerule('${rule}', this)" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1 rounded border border-zinc-700 hover:border-zinc-500 text-xs transition-colors font-bold">Save</button>
+                        </div>
+                    `;
+                }
+                html += `</div>`;
+            });
+
+            container.innerHTML = html || '<p class="text-sm text-zinc-600 italic">No rules match search.</p>';
+        }
+
+        gameruleSearch.oninput = () => {
+            if (activeWorldName && worldsData.has(activeWorldName)) {
+                renderGamerules(worldsData.get(activeWorldName).gamerules);
+            }
+        };
+
+        // --- 4. ACTIONS & WEBSOCKETS ---
+        
+        // Base sender
+        function sendWorldAction(action, extraPayload) {
+            if (!pluginOnline || !activeWorldName) return;
+            
+            let payload = { action: action, world: activeWorldName };
+            
+            if (extraPayload) {
+                Object.assign(payload, extraPayload);
+            }
+            
+            console.log("Sending World Action:", payload);
+            ws.send(JSON.stringify({ event: 'world_action', payload: payload }));
+        }
+
+        function triggerAction(action) { 
+            sendWorldAction(action); 
+        }
+
+        function forceSave(btn) {
+            sendWorldAction('save');
+            
+            const originalText = btn.innerHTML;
+            const originalClasses = btn.className;
+            
+            btn.innerHTML = '✅ Saved!';
+            btn.className = 'bg-emerald-500 text-white text-sm py-2 rounded-lg transition-colors font-bold shadow-lg shadow-emerald-500/20';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.className = originalClasses;
+            }, 2000);
+        }
+        
+        function sendGamerule(rule, value) {
+            sendWorldAction('set_gamerule', { rule: rule, value: value });
+        }
+
+        function saveNumericGamerule(rule, btn) {
+            const val = document.getElementById(`gr-${rule}`).value;
+            sendGamerule(rule, val);
+
+            if (btn) {
+                const originalText = btn.innerText;
+                const originalClasses = btn.className;
+                
+                btn.innerText = 'Saved!';
+                btn.className = 'bg-emerald-500 text-white px-3 py-1 rounded border border-emerald-400 text-xs transition-colors font-bold shadow-lg shadow-emerald-500/20';
+                
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.className = originalClasses;
+                }, 1500);
+            }
+        }
+
+        function resetGamerules() {
+            if (!activeWorldName || !worldsData.has(activeWorldName)) return;
+            
+            if (confirm("Are you sure you want to reset all gamerules to standard Minecraft defaults?")) {
+                const currentWorld = worldsData.get(activeWorldName);
+                
+                for (const [rule, defaultValue] of Object.entries(vanillaDefaultGamerules)) {
+                    if (currentWorld.gamerules && currentWorld.gamerules.hasOwnProperty(rule)) {
+                        if (currentWorld.gamerules[rule] !== defaultValue) {
+                            sendGamerule(rule, defaultValue);
+                        }
+                    }
+                }
+                console.log("Gamerules resetting to defaults...");
+            }
+        }
+
+        function toggleWorldLoad() {
+            const world = worldsData.get(activeWorldName);
+            const action = world.loaded !== false ? 'unload' : 'load';
+            
+            if (action === 'unload' && !confirm(`Are you sure you want to UNLOAD ${activeWorldName}? Players inside may be kicked to spawn.`)) {
+                return;
+            }
+            sendWorldAction(action);
+        }
+
+        function promptReset() {
+            if (confirm(`DANGER: Are you sure you want to permanently reset and wipe the dimension '${activeWorldName}'? This cannot be undone.`)) {
+                sendWorldAction('reset');
+                closePanel();
+            }
+        }
+
+        // WebSocket Handlers
         ws.onopen = () => ws.send(JSON.stringify({ event: 'plugin_status_request' }));
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
 
-            if (data.event === 'plugin_status') {
-                setPluginStatus(data.payload.status);
-            }
+            if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
 
             if (data.event === 'world_stats' && pluginOnline) {
-                grid.innerHTML = ''; 
-                
-                data.payload.forEach(world => {
-                    const isDay = world.time < 13000 || world.time > 23000;
-                    
-                    // Assign environment colors
-                    let envColor = 'text-emerald-400';
-                    if (world.environment === 'NETHER') envColor = 'text-red-400';
-                    if (world.environment === 'THE_END') envColor = 'text-purple-400';
-                    
-                    const card = `
-                        <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden shadow-sm flex flex-col">
-                            <div class="p-5 border-b border-zinc-800 flex justify-between items-center">
-                                <div>
-                                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                                        <span class="w-2 h-2 rounded-full ${envColor} bg-current"></span>
-                                        ${world.name}
-                                    </h3>
-                                    <p class="text-xs text-zinc-500 uppercase mt-1">${world.environment}</p>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-sm font-medium text-white">${formatTime(world.time)}</div>
-                                    <div class="text-xs text-zinc-500">${isDay ? '☀️ Day' : '🌙 Night'} ${world.storming ? ' | 🌧️ Rain' : ''}</div>
-                                </div>
-                            </div>
-                            
-                            <div class="p-5 grid grid-cols-3 gap-4 mb-auto">
-                                <div class="text-center">
-                                    <div class="text-xl font-bold text-white">${world.players}</div>
-                                    <div class="text-[10px] uppercase text-zinc-500">Players</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-xl font-bold text-white">${world.chunks}</div>
-                                    <div class="text-[10px] uppercase text-zinc-500">Chunks</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-xl font-bold text-white">${world.entities}</div>
-                                    <div class="text-[10px] uppercase text-zinc-500">Entities</div>
-                                </div>
-                            </div>
-
-                            <div class="p-4 bg-zinc-900/50 border-t border-zinc-800 grid grid-cols-2 gap-2">
-                                <button onclick="sendWorldAction('set_day', '${world.name}')" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded transition-colors">☀️ Set Day</button>
-                                <button onclick="sendWorldAction('set_night', '${world.name}')" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded transition-colors">🌙 Set Night</button>
-                                <button onclick="sendWorldAction('toggle_weather', '${world.name}')" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded transition-colors col-span-2">🌧️ Toggle Weather</button>
-                            </div>
-                        </div>
-                    `;
-                    grid.insertAdjacentHTML('beforeend', card);
-                });
+                data.payload.forEach(w => worldsData.set(w.name, w));
+                renderGrid();
+                if (activeWorldName) updatePanelContent(); 
             }
         };
 
         setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ event: 'plugin_status_request' }));
-            }
+            if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ event: 'plugin_status_request' }));
         }, 2000);
     </script>
 {{end}}

@@ -7,9 +7,12 @@ import net.trybeacon.plugin.BeaconPlugin;
 import net.trybeacon.plugin.files.FileManagerService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
+import org.bukkit.WorldCreator;
+import org.bukkit.entity.Player;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
+import java.io.File;
 import java.net.URI;
 import java.util.List;
 
@@ -47,11 +50,8 @@ public class BackendClient extends WebSocketClient {
             JsonObject json = JsonParser.parseString(message).getAsJsonObject();
             String event = json.has("event") ? json.get("event").getAsString() : "";
             
-            // Check if the Go backend is sending us a command from the web UI
             if (event.equals("console_command")) {
                 String command = json.get("command").getAsString();
-
-                // Commands MUST be run on the main Server Thread
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command);
                 });
@@ -87,6 +87,22 @@ public class BackendClient extends WebSocketClient {
                 String worldName = payload.get("world").getAsString();
                 
                 Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (action.equals("load")) {
+                        WorldCreator creator = new WorldCreator(worldName);
+                        
+                        // Automatically detect dimension types to prevent portal breakage
+                        if (worldName.endsWith("_nether")) {
+                            creator.environment(org.bukkit.World.Environment.NETHER);
+                        } else if (worldName.endsWith("_the_end")) {
+                            creator.environment(org.bukkit.World.Environment.THE_END);
+                        }
+                        
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            Bukkit.createWorld(creator);
+                        });
+                        return;
+                    }
+                    
                     org.bukkit.World world = Bukkit.getWorld(worldName);
                     if (world == null) return;
                     
@@ -100,6 +116,54 @@ public class BackendClient extends WebSocketClient {
                         case "toggle_weather":
                             world.setStorm(!world.hasStorm());
                             if (!world.hasStorm()) world.setWeatherDuration(0);
+                            break;
+                        case "save":
+                            world.save();
+                            break;
+                        case "set_gamerule":
+                            if (payload.has("rule") && payload.has("value")) {
+                                world.setGameRuleValue(payload.get("rule").getAsString(), payload.get("value").getAsString());
+                            }
+                            break;
+                        case "unload":
+                            evacuateWorld(world);
+                            Bukkit.unloadWorld(world, true);
+                            break;
+                        case "reset":
+                            // 1. Prevent resetting the primary world
+                            if (world.equals(Bukkit.getWorlds().get(0))) {
+                                plugin.getLogger().warning("❌ Cannot reset the primary world while the server is running.");
+                                // Optionally send a message back to the frontend here
+                                return;
+                            }
+
+                            // 2. Safely teleport players out
+                            evacuateWorld(world);
+                            File worldFolder = world.getWorldFolder();
+                            
+                            // 3. Attempt to unload. If it fails, ABORT.
+                            boolean unloaded = Bukkit.unloadWorld(world, false); 
+                            if (!unloaded) {
+                                plugin.getLogger().severe("❌ Failed to unload world '" + worldName + "'. Aborting reset to prevent corruption.");
+                                return;
+                            }
+                            
+                            // 4. Delete folder asynchronously ONLY if unload was successful
+                            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                                deleteDirectory(worldFolder);
+                                
+                                // 5. Re-create on main thread
+                                Bukkit.getScheduler().runTask(plugin, () -> {
+                                    WorldCreator creator = new WorldCreator(worldName);
+                                    if (worldName.endsWith("_nether")) {
+                                        creator.environment(org.bukkit.World.Environment.NETHER);
+                                    } else if (worldName.endsWith("_the_end")) {
+                                        creator.environment(org.bukkit.World.Environment.THE_END);
+                                    }
+                                    Bukkit.createWorld(creator);
+                                    plugin.getLogger().info("✅ Dimension '" + worldName + "' has been successfully reset.");
+                                });
+                            });
                             break;
                     }
                 });
@@ -125,6 +189,33 @@ public class BackendClient extends WebSocketClient {
     public void onError(Exception ex) {
         plugin.getLogger().severe("⚠️ WebSocket error: " + ex.getMessage());
         plugin.onBackendError(this, ex);
+    }
+
+    private void evacuateWorld(org.bukkit.World targetWorld) {
+        org.bukkit.World mainWorld = Bukkit.getWorlds().get(0);
+        for (Player p : targetWorld.getPlayers()) {
+            if (mainWorld != null && !mainWorld.equals(targetWorld)) {
+                p.teleport(mainWorld.getSpawnLocation());
+            } else {
+                p.kickPlayer("World is restarting or unloading.");
+            }
+        }
+    }
+
+    private void deleteDirectory(File path) {
+        if (path.exists()) {
+            File[] files = path.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        deleteDirectory(file);
+                    } else {
+                        file.delete();
+                    }
+                }
+            }
+            path.delete();
+        }
     }
 
     private void handleFileManagerRequest(JsonObject payload) {

@@ -3,9 +3,11 @@ package net.trybeacon.plugin.tasks;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.bukkit.Bukkit;
-import org.bukkit.Statistic; // Added for playtime
+import org.bukkit.Statistic;
 import org.bukkit.entity.Player;
 import org.java_websocket.client.WebSocketClient;
+
+import java.io.File;
 
 public class ServerStatsTask implements Runnable {
 
@@ -36,25 +38,57 @@ public class ServerStatsTask implements Runnable {
             playerObj.addProperty("name", p.getName());
             playerObj.addProperty("uuid", p.getUniqueId().toString());
             playerObj.addProperty("ping", p.getPing()); 
-            
-            playerObj.addProperty("first_join", p.getFirstPlayed()); // Timestamp in ms
+            playerObj.addProperty("first_join", p.getFirstPlayed());
             playerObj.addProperty("playtime", p.getStatistic(Statistic.PLAY_ONE_MINUTE)); 
             playerObj.addProperty("world", p.getWorld().getName());
-
             playerArray.add(playerObj);
         }
         
         JsonArray worldArray = new JsonArray();
+        
+        // LOADED worlds
         for (org.bukkit.World w : Bukkit.getWorlds()) {
             JsonObject worldObj = new JsonObject();
             worldObj.addProperty("name", w.getName());
             worldObj.addProperty("environment", w.getEnvironment().name());
+            worldObj.addProperty("loaded", true); // NEW
             worldObj.addProperty("players", w.getPlayers().size());
             worldObj.addProperty("chunks", w.getLoadedChunks().length);
             worldObj.addProperty("entities", w.getEntities().size());
             worldObj.addProperty("time", w.getTime());
             worldObj.addProperty("storming", w.hasStorm());
+            worldObj.addProperty("difficulty", w.getDifficulty().name()); // NEW
+            worldObj.addProperty("seed", String.valueOf(w.getSeed()));    // NEW
+            
+            // NEW: Fetch Gamerules
+            JsonObject gamerulesObj = new JsonObject();
+            for (String rule : w.getGameRules()) {
+                gamerulesObj.addProperty(rule, w.getGameRuleValue(rule));
+            }
+            worldObj.add("gamerules", gamerulesObj);
+            
             worldArray.add(worldObj);
+        }
+
+        // UNLOADED worlds
+        File worldContainer = Bukkit.getWorldContainer();
+        File[] files = worldContainer.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory() && new File(file, "level.dat").exists()) {
+                    String folderName = file.getName();
+                    if (Bukkit.getWorld(folderName) == null) {
+                        JsonObject worldObj = new JsonObject();
+                        worldObj.addProperty("name", folderName);
+                        worldObj.addProperty("loaded", false);
+                        worldObj.addProperty("environment", "UNKNOWN");
+                        worldObj.addProperty("difficulty", "N/A");
+                        worldObj.addProperty("seed", "N/A");
+                        worldObj.add("gamerules", new JsonObject());
+                        worldArray.add(worldObj);
+                    }
+                }
+            }
         }
         
         // Send a second packet right after server_stats
