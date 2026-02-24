@@ -56,4 +56,4 @@ A seamless, two-way bridge to your server console.
 
 We are actively developing new features for Beacon.
 
-To see what we are currently working on, suggest new features, or report bugs, please visit our **[Issue Tracker](https://github.com/adammcgrogan/beacon/issues)**!
+To see what we are currently working on, suggest new features, or report bugs, please visit our **[Issue Board](https://github.com/users/adammcgrogan/projects/4)** or **[Issue Tracker](https://github.com/adammcgrogan/beacon/issues)**!
