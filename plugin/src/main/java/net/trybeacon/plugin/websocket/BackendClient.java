@@ -2,13 +2,16 @@ package net.trybeacon.plugin.websocket;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonArray;
 import net.trybeacon.plugin.BeaconPlugin;
 import net.trybeacon.plugin.files.FileManagerService;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandMap;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
 import java.net.URI;
+import java.util.List;
 
 public class BackendClient extends WebSocketClient {
     
@@ -42,9 +45,10 @@ public class BackendClient extends WebSocketClient {
     public void onMessage(String message) { 
         try {
             JsonObject json = JsonParser.parseString(message).getAsJsonObject();
+            String event = json.has("event") ? json.get("event").getAsString() : "";
             
             // Check if the Go backend is sending us a command from the web UI
-            if (json.has("event") && json.get("event").getAsString().equals("console_command")) {
+            if (event.equals("console_command")) {
                 String command = json.get("command").getAsString();
 
                 // Commands MUST be run on the main Server Thread
@@ -53,7 +57,31 @@ public class BackendClient extends WebSocketClient {
                 });
             }
 
-            if (json.has("event") && json.get("event").getAsString().equals("world_action")) {
+            if (event.equals("console_tab_complete")) {
+                String requestId = json.has("request_id") ? json.get("request_id").getAsString() : "";
+                String command = json.has("command") ? json.get("command").getAsString() : "";
+
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    List<String> completions = getCompletions(command);
+
+                    JsonObject payload = new JsonObject();
+                    payload.addProperty("request_id", requestId);
+                    payload.addProperty("command", command);
+
+                    JsonArray completionsArray = new JsonArray();
+                    for (String completion : completions) {
+                        completionsArray.add(completion);
+                    }
+                    payload.add("completions", completionsArray);
+
+                    JsonObject envelope = new JsonObject();
+                    envelope.addProperty("event", "console_tab_complete_result");
+                    envelope.add("payload", payload);
+                    send(envelope.toString());
+                });
+            }
+
+            if (event.equals("world_action")) {
                 JsonObject payload = json.getAsJsonObject("payload");
                 String action = payload.get("action").getAsString();
                 String worldName = payload.get("world").getAsString();
@@ -77,7 +105,7 @@ public class BackendClient extends WebSocketClient {
                 });
             }
 
-            if (json.has("event") && json.get("event").getAsString().equals("file_manager_request")) {
+            if (event.equals("file_manager_request")) {
                 JsonObject payload = json.getAsJsonObject("payload");
                 Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> handleFileManagerRequest(payload));
             }
@@ -121,5 +149,17 @@ public class BackendClient extends WebSocketClient {
         envelope.addProperty("event", "file_manager_response");
         envelope.add("payload", responsePayload);
         this.send(envelope.toString());
+    }
+
+    private List<String> getCompletions(String commandLine) {
+        try {
+            CommandMap commandMap = Bukkit.getServer().getCommandMap();
+            List<String> results = commandMap.tabComplete(Bukkit.getConsoleSender(), commandLine);
+            return results != null ? results : List.of();
+        } catch (Exception ex) {
+            plugin.getLogger().fine("Tab completion unavailable: " + ex.getMessage());
+        }
+
+        return List.of();
     }
 }
