@@ -20,6 +20,10 @@ type WebSocketManager struct {
 	clientsLock sync.Mutex
 	mcConn      *websocket.Conn
 	mcConnLock  sync.RWMutex
+	mcWriteLock sync.Mutex
+
+	fileReqLock        sync.Mutex
+	pendingFileReqByID map[string]chan fileManagerResponse
 }
 
 // HandleMinecraft handles the connection from the Java plugin
@@ -41,21 +45,24 @@ func (m *WebSocketManager) HandleMinecraft(w http.ResponseWriter, r *http.Reques
 			break
 		}
 
-		m.processMinecraftMessage(messageBytes)
-		m.broadcastToWeb(messageBytes)
+		shouldBroadcast := m.processMinecraftMessage(messageBytes)
+		if shouldBroadcast {
+			m.broadcastToWeb(messageBytes)
+		}
 	}
 	m.setMinecraftConn(nil)
+	m.failAllPendingFileRequests("plugin disconnected")
 	m.broadcastPluginStatus(false)
 }
 
-func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) {
+func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) bool {
 	var envelope struct {
 		Event   string          `json:"event"`
 		Payload json.RawMessage `json:"payload"`
 	}
 
 	if err := json.Unmarshal(messageBytes, &envelope); err != nil {
-		return
+		return true
 	}
 
 	switch envelope.Event {
@@ -76,7 +83,15 @@ func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) {
 		if err := json.Unmarshal(envelope.Payload, &env); err == nil {
 			m.Store.UpdateEnv(env)
 		}
+	case "file_manager_response":
+		var response fileManagerResponse
+		if err := json.Unmarshal(envelope.Payload, &response); err == nil {
+			m.resolvePendingFileRequest(response)
+		}
+		return false
 	}
+
+	return true
 }
 
 // HandleWeb handles browser UI connections
@@ -90,9 +105,12 @@ func (m *WebSocketManager) HandleWeb(w http.ResponseWriter, r *http.Request) {
 	defer m.unregisterWebClient(conn)
 	m.sendPluginStatus(conn)
 
-	// Send history on connect
-	for _, msg := range m.Store.GetLogs() {
-		conn.WriteMessage(websocket.TextMessage, msg)
+	// Send latest.log snapshot on connect, then continue with live socket stream.
+	if err := m.sendLatestLogSnapshot(conn); err != nil {
+		// Fallback to in-memory history if file snapshot is unavailable.
+		for _, msg := range m.Store.GetLogs() {
+			conn.WriteMessage(websocket.TextMessage, msg)
+		}
 	}
 
 	for {
@@ -123,7 +141,10 @@ func (m *WebSocketManager) HandleWeb(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if err := mcConn.WriteMessage(websocket.TextMessage, messageBytes); err != nil {
+		m.mcWriteLock.Lock()
+		err = mcConn.WriteMessage(websocket.TextMessage, messageBytes)
+		m.mcWriteLock.Unlock()
+		if err != nil {
 			conn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
 			m.setMinecraftConn(nil)
 			m.broadcastPluginStatus(false)
