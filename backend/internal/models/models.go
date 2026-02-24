@@ -19,13 +19,17 @@ type PlayerInfo struct {
 }
 
 type WorldInfo struct {
-	Name        string `json:"name"`
-	Environment string `json:"environment"`
-	Players     int    `json:"players"`
-	Chunks      int    `json:"chunks"`
-	Entities    int    `json:"entities"`
-	Time        int64  `json:"time"`
-	Storming    bool   `json:"storming"`
+	Name        string            `json:"name"`
+	Environment string            `json:"environment"`
+	Loaded      bool              `json:"loaded"`
+	Players     int               `json:"players"`
+	Chunks      int               `json:"chunks"`
+	Entities    int               `json:"entities"`
+	Time        int64             `json:"time"`
+	Storming    bool              `json:"storming"`
+	Difficulty  string            `json:"difficulty"`
+	Seed        string            `json:"seed"`
+	Gamerules   map[string]string `json:"gamerules"`
 }
 
 type ServerEnv struct {
