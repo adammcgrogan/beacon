@@ -144,6 +144,11 @@
                     btn.disabled = false;
                     btn.classList.remove('opacity-50', 'cursor-not-allowed');
                 });
+                
+                const msg = document.getElementById('no-events-msg');
+                if (msg && msg.innerText.includes('Server offline')) {
+                    msg.textContent = 'No events recorded yet.';
+                }
             } else {
                 dot.className = 'w-3 h-3 bg-red-500 rounded-full';
                 text.textContent = 'Offline';
@@ -157,6 +162,14 @@
                 document.getElementById('stat-tps').textContent = 'N/A';
                 document.getElementById('stat-ram').textContent = `N/A`;
                 document.getElementById('world-radar-container').innerHTML = '<div class="flex items-center justify-center h-full text-sm text-zinc-600 italic">Server offline.</div>';
+                
+                ['env-software', 'env-java', 'env-os'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerHTML = '<span class="text-zinc-600 italic font-sans">Server offline.</span>';
+                });
+                
+                const feed = document.getElementById('events-feed');
+                if (feed) feed.innerHTML = '<div id="no-events-msg" class="flex items-center justify-center h-full text-sm text-zinc-600 italic">Server offline.</div>';
             }
         }
 
