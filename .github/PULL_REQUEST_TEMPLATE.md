@@ -2,7 +2,7 @@
 
 ## Description
 
-Small sumary of the changes you have made.
+Small summary of the changes you have made.
 
 ## Type of Change
 
