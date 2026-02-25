@@ -200,7 +200,6 @@
             if (cmd === 'stop' && !grants.can_stop_server) return;
             if (cmd === 'restart' && !grants.can_restart_server) return;
             if (cmd === 'save-all' && !grants.can_save_all) return;
-            if (confirm(`Are you sure you want to run /${cmd}?`)) {
             const confirmed = await window.beaconConfirm(`Are you sure you want to run /${cmd}?`);
             if (confirmed) {
                 ws.send(JSON.stringify({ event: 'console_command', command: cmd }));
