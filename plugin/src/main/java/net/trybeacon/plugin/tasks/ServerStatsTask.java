@@ -3,6 +3,8 @@ package net.trybeacon.plugin.tasks;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.bukkit.Bukkit;
+import org.bukkit.GameRule;
+import org.bukkit.Registry;
 import org.bukkit.Statistic;
 import org.bukkit.entity.Player;
 import org.java_websocket.client.WebSocketClient;
@@ -18,6 +20,7 @@ public class ServerStatsTask implements Runnable {
     }
 
     @Override
+    @SuppressWarnings("removal")
     public void run() {
         if (webSocketClient == null || !webSocketClient.isOpen()) {
             return;
@@ -51,19 +54,26 @@ public class ServerStatsTask implements Runnable {
             JsonObject worldObj = new JsonObject();
             worldObj.addProperty("name", w.getName());
             worldObj.addProperty("environment", w.getEnvironment().name());
-            worldObj.addProperty("loaded", true); // NEW
+            worldObj.addProperty("loaded", true);
             worldObj.addProperty("players", w.getPlayers().size());
             worldObj.addProperty("chunks", w.getLoadedChunks().length);
             worldObj.addProperty("entities", w.getEntities().size());
             worldObj.addProperty("time", w.getTime());
             worldObj.addProperty("storming", w.hasStorm());
-            worldObj.addProperty("difficulty", w.getDifficulty().name()); // NEW
-            worldObj.addProperty("seed", String.valueOf(w.getSeed()));    // NEW
+            worldObj.addProperty("difficulty", w.getDifficulty().name());
+            worldObj.addProperty("seed", String.valueOf(w.getSeed()));
             
-            // NEW: Fetch Gamerules
+            // Current Gamerules
             JsonObject gamerulesObj = new JsonObject();
-            for (String rule : w.getGameRules()) {
-                gamerulesObj.addProperty(rule, w.getGameRuleValue(rule));
+            for (GameRule<?> rule : Registry.GAME_RULE) {
+                try {
+                    Object val = w.getGameRuleValue(rule);
+                    if (val != null) {
+                        gamerulesObj.addProperty(rule.getName(), String.valueOf(val));
+                    }
+                } catch (IllegalArgumentException e) {
+                    // Ignore gamerules that are registered globally but invalid for this specific world
+                }
             }
             worldObj.add("gamerules", gamerulesObj);
             
@@ -90,8 +100,25 @@ public class ServerStatsTask implements Runnable {
                 }
             }
         }
+
+        // Default Gamerules dynamically from Bukkit Registry
+        JsonObject defaultGamerulesObj = new JsonObject();
+        if (!Bukkit.getWorlds().isEmpty()) {
+            org.bukkit.World firstWorld = Bukkit.getWorlds().get(0);
+            for (GameRule<?> rule : Registry.GAME_RULE) {
+                try {
+                    Object defaultValue = firstWorld.getGameRuleDefault(rule);
+                    if (defaultValue != null) {
+                        defaultGamerulesObj.addProperty(rule.getName(), String.valueOf(defaultValue));
+                    }
+                } catch (IllegalArgumentException e) {
+                    // Ignore gamerules that are registered globally but invalid for this specific world
+                }
+            }
+        }
+        payload.add("default_gamerules", defaultGamerulesObj);
         
-        // Send a second packet right after server_stats
+        // Send world stats packet
         JsonObject worldJson = new JsonObject();
         worldJson.addProperty("event", "world_stats");
         worldJson.add("payload", worldArray);
@@ -99,6 +126,7 @@ public class ServerStatsTask implements Runnable {
 
         payload.add("player_list", playerArray);
 
+        // Send server stats packet
         JsonObject rootJson = new JsonObject();
         rootJson.addProperty("event", "server_stats");
         rootJson.add("payload", payload);

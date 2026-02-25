@@ -67,17 +67,10 @@ func (h *UIHandler) HandleFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UIHandler) HandleGameruleDefaults(w http.ResponseWriter, r *http.Request) {
-	defaults := map[string]string{
-		"announceAdvancements": "true", "commandBlockOutput": "true", "disableElytraMovementCheck": "false",
-		"disableRaids": "false", "doDaylightCycle": "true", "doEntityDrops": "true", "doFireTick": "true",
-		"doInsomnia": "true", "doImmediateRespawn": "false", "doLimitedCrafting": "false", "doMobLoot": "true",
-		"doMobSpawning": "true", "doPatrolSpawning": "true", "doTileDrops": "true", "doTraderSpawning": "true",
-		"doWeatherCycle": "true", "drowningDamage": "true", "fallDamage": "true", "fireDamage": "true",
-		"forgiveDeadPlayers": "true", "freezeDamage": "true", "keepInventory": "false", "logAdminCommands": "true",
-		"maxCommandChainLength": "65536", "maxEntityCramming": "24", "mobGriefing": "true", "naturalRegeneration": "true",
-		"playersSleepingPercentage": "100", "randomTickSpeed": "3", "reducedDebugInfo": "false",
-		"sendCommandFeedback": "true", "showDeathMessages": "true", "spawnRadius": "10",
-		"spectatorsGenerateChunks": "true", "universalAnger": "false",
+	defaults := h.Store.GetStats().DefaultGamerules
+
+	if defaults == nil {
+		defaults = make(map[string]string)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
