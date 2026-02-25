@@ -255,6 +255,8 @@ func (h *UIHandler) requirePageFileViewPermission(w http.ResponseWriter, r *http
 func (h *UIHandler) sessionFromContext(r *http.Request) SessionClaims {
 	claims, _ := r.Context().Value(sessionContextKey).(SessionClaims)
 	return claims
+}
+
 func (h *UIHandler) HandleGameruleDefaults(w http.ResponseWriter, r *http.Request) {
 	defaults := h.Store.GetStats().DefaultGamerules
 
