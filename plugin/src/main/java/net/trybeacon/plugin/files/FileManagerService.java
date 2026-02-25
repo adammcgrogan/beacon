@@ -173,15 +173,28 @@ public class FileManagerService {
 
     private JsonObject fileDelete(String rawPath) throws IOException {
         Path path = resolvePath(rawPath, true);
+        
         if (Files.isDirectory(path)) {
-            throw new IllegalArgumentException("directory deletion is not supported");
+            deleteDirectoryRecursively(path.toFile());
+        } else {
+            Files.delete(path);
         }
-
-        Files.delete(path);
 
         JsonObject data = new JsonObject();
         data.addProperty("ok", true);
         return data;
+    }
+
+    private void deleteDirectoryRecursively(File file) {
+        if (file.isDirectory()) {
+            File[] entries = file.listFiles();
+            if (entries != null) {
+                for (File entry : entries) {
+                    deleteDirectoryRecursively(entry);
+                }
+            }
+        }
+        file.delete();
     }
 
     private JsonObject fileDownload(String rawPath) throws IOException {
@@ -239,4 +252,5 @@ public class FileManagerService {
         }
         return root.relativize(path).toString().replace('\\', '/');
     }
+
 }
