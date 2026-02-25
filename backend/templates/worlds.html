@@ -86,18 +86,19 @@
         let activeWorldName = null;
 
         // Standard vanilla Minecraft defaults
-        const vanillaDefaultGamerules = {
-            announceAdvancements: "true", commandBlockOutput: "true", disableElytraMovementCheck: "false",
-            disableRaids: "false", doDaylightCycle: "true", doEntityDrops: "true", doFireTick: "true",
-            doInsomnia: "true", doImmediateRespawn: "false", doLimitedCrafting: "false", doMobLoot: "true",
-            doMobSpawning: "true", doPatrolSpawning: "true", doTileDrops: "true", doTraderSpawning: "true",
-            doWeatherCycle: "true", drowningDamage: "true", fallDamage: "true", fireDamage: "true",
-            forgiveDeadPlayers: "true", freezeDamage: "true", keepInventory: "false", logAdminCommands: "true",
-            maxCommandChainLength: "65536", maxEntityCramming: "24", mobGriefing: "true", naturalRegeneration: "true",
-            playersSleepingPercentage: "100", randomTickSpeed: "3", reducedDebugInfo: "false",
-            sendCommandFeedback: "true", showDeathMessages: "true", spawnRadius: "10", 
-            spectatorsGenerateChunks: "true", universalAnger: "false"
-        };
+        let vanillaDefaultGamerules = {};
+
+        async function fetchGameruleDefaults() {
+            try {
+                const response = await fetch('/api/gamerules/defaults');
+                vanillaDefaultGamerules = await response.json();
+                console.log("Loaded gamerule defaults from API");
+            } catch (err) {
+                console.error("Failed to load gamerule defaults:", err);
+            }
+        }
+
+        fetchGameruleDefaults();
 
         // --- 1. UI UPDATERS ---
         function setPluginStatus(status) {

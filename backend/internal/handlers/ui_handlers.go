@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"html/template"
 	"net/http"
 
@@ -63,4 +64,15 @@ func (h *UIHandler) HandleFiles(w http.ResponseWriter, r *http.Request) {
 		"ActiveTab": "files",
 	}
 	tmpl.ExecuteTemplate(w, "base", data)
+}
+
+func (h *UIHandler) HandleGameruleDefaults(w http.ResponseWriter, r *http.Request) {
+	defaults := h.Store.GetStats().DefaultGamerules
+
+	if defaults == nil {
+		defaults = make(map[string]string)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(defaults)
 }

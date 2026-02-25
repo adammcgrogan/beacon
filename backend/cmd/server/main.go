@@ -38,6 +38,7 @@ func main() {
 	http.HandleFunc("/api/files/content", ui.HandleFilesContent)
 	http.HandleFunc("/api/files", ui.HandleFilesDelete)
 	http.HandleFunc("/api/files/download", ui.HandleFilesDownload)
+	http.HandleFunc("/api/gamerules/defaults", ui.HandleGameruleDefaults)
 
 	// 5. Mount WebSocket Routes
 	http.HandleFunc("/ws", ws.HandleMinecraft)
