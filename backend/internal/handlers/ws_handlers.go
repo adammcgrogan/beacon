@@ -294,7 +294,14 @@ func (m *WebSocketManager) authorizeSessionEvent(parent context.Context, session
 		return false
 	}
 
-	ctx, cancel := context.WithTimeout(parent, 4*time.Second)
+	// Respect the parent context's deadline; only add a timeout if none is set.
+	ctx := parent
+	cancel := func() {}
+	if _, ok := parent.Deadline(); !ok {
+		ctxWithTimeout, c := context.WithTimeout(parent, 4*time.Second)
+		ctx = ctxWithTimeout
+		cancel = c
+	}
 	defer cancel()
 	permissions, _, err := m.Auth.GetPermissions(ctx, m, session.PlayerUUID)
 	if err != nil && err != ErrPluginOffline {
