@@ -1,25 +1,83 @@
 {{define "files"}}
-    <div class="flex items-end justify-between gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-white">File Manager</h1>
-            <p id="files-status-subtitle" class="text-zinc-500 text-sm">Browse, edit, delete, and download files.</p>
-        </div>
-        <div class="flex gap-2">
-            <button id="save-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Save</button>
-            <button id="download-btn" class="bg-zinc-800 text-zinc-100 font-semibold px-4 py-2 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Download</button>
-            <button id="delete-btn" class="bg-red-600/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Delete</button>
-        </div>
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-white">File Manager</h1>
+        <p id="files-status-subtitle" class="text-zinc-500 text-sm">Browse, edit, delete, and download files.</p>
     </div>
 
     <div id="path-breadcrumbs" class="mb-4 text-sm text-zinc-400 flex flex-wrap gap-2 items-center"></div>
 
     <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 h-[72vh]">
+        
         <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
-            <div class="px-4 py-3 border-b border-zinc-800 text-xs uppercase tracking-wider text-zinc-500">Directory</div>
+            <div class="px-4 py-2 border-b border-zinc-800 flex justify-between items-center bg-[#1c1c20] min-h-[44px]">
+                <span class="text-xs uppercase tracking-wider text-zinc-500 font-semibold">Directory</span>
+                
+                <div class="flex items-center gap-4">
+                    <div id="create-group" class="relative group transition-opacity">
+                        <button class="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors text-xs font-medium focus:outline-none">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Create
+                        </button>
+                        <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50">
+                            <div class="bg-[#1f1f23] border border-zinc-700 rounded-lg shadow-xl min-w-[130px] py-1 overflow-hidden">
+                                <button onclick="promptCreate('file')" class="w-full text-left px-3 py-2 hover:bg-zinc-700/50 text-xs text-zinc-300 hover:text-white flex items-center gap-2 transition-colors">
+                                    <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                    File
+                                </button>
+                                <button onclick="promptCreate('dir')" class="w-full text-left px-3 py-2 hover:bg-zinc-700/50 text-xs text-zinc-300 hover:text-white flex items-center gap-2 transition-colors">
+                                    <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                    Folder
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="upload-group" class="relative group transition-opacity">
+                        <button class="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors text-xs font-medium focus:outline-none">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            Upload
+                        </button>
+                        <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50">
+                            <div class="bg-[#1f1f23] border border-zinc-700 rounded-lg shadow-xl min-w-[130px] py-1 overflow-hidden">
+                                <button onclick="document.getElementById('file-upload').click()" class="w-full text-left px-3 py-2 hover:bg-zinc-700/50 text-xs text-zinc-300 hover:text-white flex items-center gap-2 transition-colors">
+                                    <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                                    File
+                                </button>
+                                <button onclick="document.getElementById('folder-upload').click()" class="w-full text-left px-3 py-2 hover:bg-zinc-700/50 text-xs text-zinc-300 hover:text-white flex items-center gap-2 transition-colors">
+                                    <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                    Folder
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <input type="file" id="file-upload" class="hidden" multiple onchange="handleUpload(event)">
+                <input type="file" id="folder-upload" class="hidden" webkitdirectory directory multiple onchange="handleUpload(event)">
+            </div>
             <div id="file-list" class="overflow-y-auto flex-1"></div>
         </div>
+
         <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
-            <div id="editor-header" class="px-4 py-3 border-b border-zinc-800 text-sm text-zinc-400">Select a file to edit.</div>
+            <div class="px-4 py-2 border-b border-zinc-800 flex justify-between items-center bg-[#1c1c20] min-h-[44px]">
+                <div id="editor-header" class="text-sm text-zinc-400 truncate pr-4">Select a file to edit.</div>
+                
+                <div class="flex items-center gap-2 shrink-0">
+                    <button id="save-btn" class="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                        Save
+                    </button>
+                    <button id="download-btn" class="flex items-center gap-1.5 bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Download
+                    </button>
+                    <button id="delete-btn" class="flex items-center gap-1.5 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        Delete
+                    </button>
+                </div>
+            </div>
+
             <div id="editor" class="flex-1"></div>
             <div id="editor-offline" class="hidden flex-1 flex items-center justify-center text-zinc-600 italic">Server offline.</div>
             <div id="status-bar" class="px-4 py-2 border-t border-zinc-800 text-xs text-zinc-500">Ready.</div>
@@ -32,9 +90,13 @@
         const breadcrumbEl = document.getElementById('path-breadcrumbs');
         const editorHeader = document.getElementById('editor-header');
         const statusBar = document.getElementById('status-bar');
+        
         const saveBtn = document.getElementById('save-btn');
         const downloadBtn = document.getElementById('download-btn');
         const deleteBtn = document.getElementById('delete-btn');
+        
+        const createGroup = document.getElementById('create-group');
+        const uploadGroup = document.getElementById('upload-group');
 
         let editor = null;
         let loadedPath = '';
@@ -51,7 +113,7 @@
                 
                 const statusSubtitle = document.getElementById('files-status-subtitle');
                 if (!pluginOnline) {
-                    statusSubtitle.textContent = 'Server offline. Start your server to view dimension details.';
+                    statusSubtitle.textContent = 'Server offline. Start your server to manage files.';
                     statusSubtitle.className = 'text-amber-400 text-sm';
                     fileList.innerHTML = '<div class="px-4 py-10 text-center text-zinc-600 italic">Server offline.</div>';
                     editorHeader.textContent = 'Server offline.';
@@ -72,6 +134,7 @@
                     if (wasOffline && fileList.innerHTML.includes('Server offline.')) {
                         hydrate(getRoutePath());
                     }
+                    updateButtons();
                 }
             }
         };
@@ -109,8 +172,8 @@
 
         function fileIcon(isDir) {
             return isDir
-                ? '<svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"></path></svg>'
-                : '<svg class="w-4 h-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+                ? '<svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>'
+                : '<svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>';
         }
 
         function formatSize(bytes) {
@@ -131,10 +194,20 @@
         }
 
         function updateButtons() {
+            // Editor actions
             const hasFileLoaded = !isDirectory && !!loadedPath;
             saveBtn.disabled = !hasFileLoaded || !editor || !pluginOnline;
             downloadBtn.disabled = !hasFileLoaded || !pluginOnline;
             deleteBtn.disabled = !hasFileLoaded || !pluginOnline;
+            
+            // Directory actions
+            if (!pluginOnline) {
+                createGroup.classList.add('opacity-50', 'pointer-events-none');
+                uploadGroup.classList.add('opacity-50', 'pointer-events-none');
+            } else {
+                createGroup.classList.remove('opacity-50', 'pointer-events-none');
+                uploadGroup.classList.remove('opacity-50', 'pointer-events-none');
+            }
         }
 
         function renderBreadcrumbs(path) {
@@ -170,7 +243,10 @@
 
             let rows = '';
             if (path) {
-                rows += `<button class="w-full text-left flex items-center gap-2 px-4 py-2 hover:bg-zinc-800/70 border-b border-zinc-800 text-zinc-300" data-nav="${escapeHtml(parent)}">${fileIcon(true)} ..</button>`;
+                rows += `<button class="w-full text-left flex items-center gap-2 px-4 py-2 hover:bg-zinc-800/70 border-b border-zinc-800 text-zinc-300" data-nav="${escapeHtml(parent)}">
+                    <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    ..
+                </button>`;
             }
 
             if (!data.entries.length) {
@@ -265,6 +341,89 @@
             hydrate(path);
         }
 
+        // --- Create / Upload --- //
+
+        async function promptCreate(type) {
+            if (!pluginOnline) return;
+            
+            let currentDir = isDirectory ? loadedPath : parentPath(loadedPath);
+            if (currentDir === undefined) currentDir = '';
+
+            const itemName = prompt(`Enter name for new ${type === 'dir' ? 'folder' : 'file'}:`);
+            if (!itemName) return;
+
+            const targetPath = currentDir ? `${currentDir}/${itemName}` : itemName;
+            
+            try {
+                setStatus(`Creating ${type}...`);
+                await apiFetch('/api/files/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: targetPath, type: type })
+                });
+                setStatus(`${type === 'dir' ? 'Folder' : 'File'} created successfully.`);
+                
+                if (type === 'file') {
+                    navigate(targetPath);
+                } else {
+                    hydrate(currentDir);
+                }
+            } catch (err) {
+                setStatus(`Creation failed: ${err.message}`, true);
+            }
+        }
+
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handleUpload(event) {
+            if (!pluginOnline) return;
+            
+            const files = event.target.files;
+            if (!files.length) return;
+            
+            let currentDir = isDirectory ? loadedPath : parentPath(loadedPath);
+            if (currentDir === undefined) currentDir = '';
+
+            setStatus(`Uploading ${files.length} file(s)...`);
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const relativePath = file.webkitRelativePath || file.name;
+                const targetPath = currentDir ? `${currentDir}/${relativePath}` : relativePath;
+
+                try {
+                    const base64Content = await readFileAsBase64(file);
+                    
+                    await apiFetch(`/api/files/upload`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: targetPath, content: base64Content })
+                    });
+                } catch (err) {
+                    console.error("Upload failed for", file.name, err);
+                    setStatus(`Failed to upload ${file.name}: ${err.message}`, true);
+                    event.target.value = '';
+                    return; 
+                }
+            }
+            
+            setStatus(`Successfully uploaded ${files.length} file(s).`);
+            event.target.value = ''; 
+            hydrate(currentDir); 
+        }
+
+        // --- File Actions --- //
+
         async function saveCurrentFile() {
             if (!editor || !loadedPath || !pluginOnline) return;
             try {
@@ -287,8 +446,7 @@
 
         async function deleteCurrentFile() {
             if (!loadedPath || !pluginOnline) return;
-            const confirmed = await window.beaconConfirm(`Delete ${loadedPath}? This action cannot be undone.`);
-            if (!confirmed) return;
+            if (!confirm(`Delete ${loadedPath}? This action cannot be undone.`)) return;
             try {
                 await apiFetch(`/api/files?path=${encodeURIComponent(loadedPath)}`, { method: 'DELETE' });
                 const backTo = parentPath(loadedPath);

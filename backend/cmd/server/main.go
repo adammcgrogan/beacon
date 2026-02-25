@@ -36,6 +36,8 @@ func main() {
 	http.HandleFunc("/api/files/meta", ui.HandleFilesMeta)
 	http.HandleFunc("/api/files/list", ui.HandleFilesList)
 	http.HandleFunc("/api/files/content", ui.HandleFilesContent)
+	http.HandleFunc("/api/files/create", ui.HandleFilesCreate)
+	http.HandleFunc("/api/files/upload", ui.HandleFilesUpload)
 	http.HandleFunc("/api/files", ui.HandleFilesDelete)
 	http.HandleFunc("/api/files/download", ui.HandleFilesDownload)
 	http.HandleFunc("/api/gamerules/defaults", ui.HandleGameruleDefaults)

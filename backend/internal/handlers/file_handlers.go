@@ -69,6 +69,55 @@ func (h *UIHandler) HandleFilesContent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *UIHandler) HandleFilesCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+	var req struct {
+		Path string `json:"path"`
+		Type string `json:"type"` // "file" or "dir"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	action := "create_file"
+	if req.Type == "dir" {
+		action = "create_dir"
+	}
+
+	response, err := h.fileRequest(r.Context(), action, req.Path, "")
+	if err != nil {
+		writeFileError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (h *UIHandler) HandleFilesUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+	var req struct {
+		Path    string `json:"path"`
+		Content string `json:"content"` // base64
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	response, err := h.fileRequest(r.Context(), "upload_file", req.Path, req.Content)
+	if err != nil {
+		writeFileError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
 func (h *UIHandler) HandleFilesDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		methodNotAllowed(w)

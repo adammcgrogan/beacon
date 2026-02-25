@@ -35,13 +35,15 @@ public class FileManagerService {
             case "write_text" -> fileWriteText(rawPath, content);
             case "delete" -> fileDelete(rawPath);
             case "download" -> fileDownload(rawPath);
+            case "create_file" -> fileCreate(rawPath);
+            case "create_dir" -> dirCreate(rawPath);
+            case "upload_file" -> fileUpload(rawPath, content);
             default -> throw new IllegalArgumentException("unsupported action");
         };
     }
 
     private JsonObject fileMeta(String rawPath) throws IOException {
-        Path path = resolveExistingPath(rawPath);
-
+        Path path = resolvePath(rawPath, true);
         JsonObject data = new JsonObject();
         data.addProperty("path", relativePath(path));
         data.addProperty("name", path.equals(serverRoot()) ? "/" : path.getFileName().toString());
@@ -52,7 +54,7 @@ public class FileManagerService {
     }
 
     private JsonObject fileList(String rawPath) throws IOException {
-        Path path = resolveExistingPath(rawPath);
+        Path path = resolvePath(rawPath, true);
         if (!Files.isDirectory(path)) {
             throw new IllegalArgumentException("path is not a directory");
         }
@@ -84,7 +86,7 @@ public class FileManagerService {
     }
 
     private JsonObject fileReadText(String rawPath) throws IOException {
-        Path path = resolveExistingPath(rawPath);
+        Path path = resolvePath(rawPath, true);
         if (Files.isDirectory(path)) {
             throw new IllegalArgumentException("path is a directory");
         }
@@ -119,7 +121,7 @@ public class FileManagerService {
     }
 
     private JsonObject fileWriteText(String rawPath, String content) throws IOException {
-        Path path = resolveExistingPath(rawPath);
+        Path path = resolvePath(rawPath, true);
         if (Files.isDirectory(path)) {
             throw new IllegalArgumentException("path is a directory");
         }
@@ -134,8 +136,43 @@ public class FileManagerService {
         return data;
     }
 
+    private JsonObject fileCreate(String rawPath) throws IOException {
+        Path path = resolvePath(rawPath, false);
+        if (Files.exists(path)) throw new IllegalArgumentException("file already exists");
+        if (path.getParent() != null) Files.createDirectories(path.getParent());
+        
+        Files.createFile(path);
+        
+        JsonObject data = new JsonObject();
+        data.addProperty("ok", true);
+        return data;
+    }
+
+    private JsonObject dirCreate(String rawPath) throws IOException {
+        Path path = resolvePath(rawPath, false);
+        if (Files.exists(path)) throw new IllegalArgumentException("directory already exists");
+        
+        Files.createDirectories(path);
+        
+        JsonObject data = new JsonObject();
+        data.addProperty("ok", true);
+        return data;
+    }
+
+    private JsonObject fileUpload(String rawPath, String contentBase64) throws IOException {
+        Path path = resolvePath(rawPath, false);
+        if (path.getParent() != null) Files.createDirectories(path.getParent());
+        
+        byte[] decoded = Base64.getDecoder().decode(contentBase64);
+        Files.write(path, decoded);
+        
+        JsonObject data = new JsonObject();
+        data.addProperty("ok", true);
+        return data;
+    }
+
     private JsonObject fileDelete(String rawPath) throws IOException {
-        Path path = resolveExistingPath(rawPath);
+        Path path = resolvePath(rawPath, true);
         if (Files.isDirectory(path)) {
             throw new IllegalArgumentException("directory deletion is not supported");
         }
@@ -148,7 +185,7 @@ public class FileManagerService {
     }
 
     private JsonObject fileDownload(String rawPath) throws IOException {
-        Path path = resolveExistingPath(rawPath);
+        Path path = resolvePath(rawPath, true);
         if (Files.isDirectory(path)) {
             throw new IllegalArgumentException("path is a directory");
         }
@@ -169,7 +206,7 @@ public class FileManagerService {
         return root.toPath().toRealPath();
     }
 
-    private Path resolveExistingPath(String rawPath) throws IOException {
+    private Path resolvePath(String rawPath, boolean mustExist) throws IOException {
         String relative = rawPath == null ? "" : rawPath.trim();
         while (relative.startsWith("/")) {
             relative = relative.substring(1);
@@ -177,18 +214,22 @@ public class FileManagerService {
 
         Path root = serverRoot();
         Path candidate = relative.isEmpty() ? root : root.resolve(relative).normalize();
-        if (!candidate.startsWith(root)) {
+        
+        if (!candidate.normalize().startsWith(root.normalize())) {
             throw new IllegalArgumentException("path escapes root");
         }
-        if (!Files.exists(candidate)) {
+        if (mustExist && !Files.exists(candidate)) {
             throw new IllegalArgumentException("file or directory not found");
         }
-
-        Path real = candidate.toRealPath();
-        if (!real.startsWith(root)) {
-            throw new IllegalArgumentException("path escapes root");
+        
+        if (Files.exists(candidate)) {
+            Path real = candidate.toRealPath();
+            if (!real.startsWith(root)) {
+                throw new IllegalArgumentException("path escapes root");
+            }
+            return real;
         }
-        return real;
+        return candidate;
     }
 
     private String relativePath(Path path) throws IOException {
