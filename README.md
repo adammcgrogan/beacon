@@ -12,7 +12,7 @@
 </div>
 
 The command center for your server's health and performance.
-* **Live Graphs:** Real-time, animated graphs tracking Server TPS and RAM usage over the last 60 seconds.
+* **Live Graphs:** Real-time, animated graphs tracking TPS and RAM usage over the last 60 seconds.
 * **Danger Zone Controls:** Send Stop, Restart, and Save-All commands directly from the UI.
 * **World Radar:** A visual progress bar showing which of your top dimensions are consuming the most server resources.
 * **Recent Events Feed:** A cleanly filtered, color-coded feed of console high-level events (joins, leaves, saves, warnings, and errors).
@@ -25,20 +25,20 @@ The command center for your server's health and performance.
 
 A full-fledged file browser and code editor built right into your dashboard.
 * **Web-Based Code Editor:** Edit configuration files instantly using the integrated Monaco Editor (the same powerful engine behind VS Code).
-* **Full File Operations:** Browse directories, download files to your local machine, and delete files directly from your browser.
+* **Full File Operations:** Browse directories, download files to your computer, and delete files directly from your browser.
 * **Breadcrumb Navigation:** Easily navigate complex plugin folder structures.
-* **Real-time Saves:** Push changes live to your server with a single click or standard keyboard shortcuts (Ctrl+S / Cmd+S).
+* **Real-time Saves:** Push changes live to your server with a single click.
 
 ### 🌍 World Manager
 <div align="center">
   <img src="assets/ss_worlds.png" alt="World Manager" width="800" />
 </div>
 
-Monitor and manipulate individual dimensions on the fly.
+Monitor and manipulate individual worlds on the fly.
 * **Live Dimension Metrics:** View active players, loaded chunks, and entity counts per world.
-* **Interactive Gamerule Editor:** A fully searchable interface to tweak any dimension's gamerules (booleans and numerics) in real-time.
+* **Interactive Gamerule Editor:** A fully searchable interface to tweak any world's gamerules in real-time.
 * **Environment Controls:** Instantly snap the time to Day/Night, toggle the weather, or force a world save.
-* **Danger Zone:** Unload inactive dimensions to save RAM, or permanently reset a dimension completely from the UI.
+* **Danger Zone:** Unload inactive worlds to improve server performance, or permanently reset a dimension completely from the UI.
 
 ### 💻 Live Console
 <div align="center">
@@ -50,7 +50,6 @@ A seamless, two-way bridge to your server console with advanced developer tools.
 * **Tab Completions:** Type commands faster with live, context-aware tab completions requested straight from the server.
 * **Log Filtering & Search:** Clean up the noise by toggling INFO, WARN, or ERROR messages, or instantly search the live log stream for specific keywords.
 * **One-Click Log Sharing:** Instantly upload and share a snapshot of your visible console logs using the built-in `mclo.gs` integration.
-* **Spam Collapse:** Identical repeating log messages are intelligently collapsed into a single line with a multiplier badge (e.g., `x5`) to keep your feed clean.
 
 ### 👥 Player Management
 <div align="center">
