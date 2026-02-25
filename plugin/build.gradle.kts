@@ -8,12 +8,14 @@ plugins {
 repositories {
     mavenLocal()
     mavenCentral()
+    maven("https://jitpack.io")
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.maven.apache.org/maven2/")
 }
 
 dependencies {
     compileOnly(libs.paper)
+    compileOnly(libs.vault)
     api(libs.websocket)
     compileOnly(libs.log4j)
 }
@@ -34,6 +36,11 @@ tasks.withType<Javadoc> {
 tasks.runServer {
     minecraftVersion("1.21.11")
     jvmArgs("-DPaper.IgnoreJavaVersion=true", "-Dcom.mojang.eula.agree=true")
+
+    downloadPlugins {
+        github("MilkBowl", "Vault", "1.7.3", "Vault.jar")
+        modrinth("luckperms", "OrIs0S6b")
+    }
 }
 
 val backendProjectDir = projectDir.parentFile.resolve("backend")

@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -13,8 +15,18 @@ func (h *UIHandler) HandleFilesMeta(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w)
 		return
 	}
+	_, permissions, ok := h.requireAuthForAPI(w, r)
+	if !ok {
+		return
+	}
 
-	response, err := h.fileRequest(r.Context(), "meta", r.URL.Query().Get("path"), "")
+	rawPath := r.URL.Query().Get("path")
+	if !CanAccessFilePath(permissions, "view", rawPath) {
+		writeJSONError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	response, err := h.fileRequest(r.Context(), "meta", rawPath, "")
 	if err != nil {
 		writeFileError(w, err)
 		return
@@ -28,21 +40,44 @@ func (h *UIHandler) HandleFilesList(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w)
 		return
 	}
+	_, permissions, ok := h.requireAuthForAPI(w, r)
+	if !ok {
+		return
+	}
+	rawPath := r.URL.Query().Get("path")
+	if !CanAccessFilePath(permissions, "view", rawPath) {
+		writeJSONError(w, http.StatusForbidden, "forbidden")
+		return
+	}
 
-	response, err := h.fileRequest(r.Context(), "list", r.URL.Query().Get("path"), "")
+	response, err := h.fileRequest(r.Context(), "list", rawPath, "")
 	if err != nil {
 		writeFileError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	filtered, err := filterVisibleEntries(response, permissions)
+	if err != nil {
+		writeFileError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, filtered)
 }
 
 func (h *UIHandler) HandleFilesContent(w http.ResponseWriter, r *http.Request) {
+	_, permissions, ok := h.requireAuthForAPI(w, r)
+	if !ok {
+		return
+	}
 	path := r.URL.Query().Get("path")
 
 	switch r.Method {
 	case http.MethodGet:
+		if !CanAccessFilePath(permissions, "view", path) {
+			writeJSONError(w, http.StatusForbidden, "forbidden")
+			return
+		}
 		response, err := h.fileRequest(r.Context(), "read_text", path, "")
 		if err != nil {
 			writeFileError(w, err)
@@ -50,6 +85,10 @@ func (h *UIHandler) HandleFilesContent(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, response)
 	case http.MethodPut:
+		if !CanAccessFilePath(permissions, "edit", path) {
+			writeJSONError(w, http.StatusForbidden, "forbidden")
+			return
+		}
 		var req struct {
 			Content string `json:"content"`
 		}
@@ -74,8 +113,17 @@ func (h *UIHandler) HandleFilesDelete(w http.ResponseWriter, r *http.Request) {
 		methodNotAllowed(w)
 		return
 	}
+	_, permissions, ok := h.requireAuthForAPI(w, r)
+	if !ok {
+		return
+	}
+	rawPath := r.URL.Query().Get("path")
+	if !CanAccessFilePath(permissions, "delete", rawPath) {
+		writeJSONError(w, http.StatusForbidden, "forbidden")
+		return
+	}
 
-	response, err := h.fileRequest(r.Context(), "delete", r.URL.Query().Get("path"), "")
+	response, err := h.fileRequest(r.Context(), "delete", rawPath, "")
 	if err != nil {
 		writeFileError(w, err)
 		return
@@ -89,8 +137,17 @@ func (h *UIHandler) HandleFilesDownload(w http.ResponseWriter, r *http.Request) 
 		methodNotAllowed(w)
 		return
 	}
+	_, permissions, ok := h.requireAuthForAPI(w, r)
+	if !ok {
+		return
+	}
+	rawPath := r.URL.Query().Get("path")
+	if !CanAccessFilePath(permissions, "download", rawPath) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
-	raw, err := h.fileRequest(r.Context(), "download", r.URL.Query().Get("path"), "")
+	raw, err := h.fileRequest(r.Context(), "download", rawPath, "")
 	if err != nil {
 		writeFileDownloadError(w, err)
 		return
@@ -196,4 +253,35 @@ func writeJSON(w http.ResponseWriter, status int, value interface{}) {
 
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func filterVisibleEntries(raw json.RawMessage, permissions []string) (map[string]any, error) {
+	var response struct {
+		Path    string           `json:"path"`
+		Entries []map[string]any `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &response); err != nil {
+		return nil, err
+	}
+
+	filtered := make([]map[string]any, 0, len(response.Entries))
+	basePath := strings.Trim(strings.TrimSpace(response.Path), "/")
+	for _, entry := range response.Entries {
+		name, _ := entry["name"].(string)
+		if name == "" {
+			continue
+		}
+		entryPath := name
+		if basePath != "" {
+			entryPath = path.Join(basePath, name)
+		}
+		if CanAccessFilePath(permissions, "view", entryPath) {
+			filtered = append(filtered, entry)
+		}
+	}
+
+	return map[string]any{
+		"path":    response.Path,
+		"entries": filtered,
+	}, nil
 }

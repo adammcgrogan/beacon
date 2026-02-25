@@ -5,16 +5,22 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonArray;
 import net.trybeacon.plugin.BeaconPlugin;
 import net.trybeacon.plugin.files.FileManagerService;
+import net.trybeacon.plugin.permissions.VaultPermissionService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
 import org.bukkit.WorldCreator;
 import org.bukkit.entity.Player;
+import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
 import java.io.File;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 public class BackendClient extends WebSocketClient {
     
@@ -42,6 +48,14 @@ public class BackendClient extends WebSocketClient {
         envJson.add("payload", envPayload);
 
         this.send(envJson.toString());
+
+        JsonObject pathPayload = new JsonObject();
+        pathPayload.addProperty("plugin_data_dir", plugin.getDataFolder().getAbsolutePath());
+
+        JsonObject pathJson = new JsonObject();
+        pathJson.addProperty("event", "plugin_paths");
+        pathJson.add("payload", pathPayload);
+        this.send(pathJson.toString());
     }
 
     @Override
@@ -174,6 +188,16 @@ public class BackendClient extends WebSocketClient {
                 Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> handleFileManagerRequest(payload));
             }
 
+            if (event.equals("player_permissions_request")) {
+                JsonObject payload = json.getAsJsonObject("payload");
+                Bukkit.getScheduler().runTask(plugin, () -> handlePlayerPermissionsRequest(payload));
+            }
+
+            if (event.equals("permission_admin_request")) {
+                JsonObject payload = json.getAsJsonObject("payload");
+                Bukkit.getScheduler().runTask(plugin, () -> handlePermissionAdminRequest(payload));
+            }
+
         } catch (Exception e) {
             // Ignore messages that aren't valid JSON
         }
@@ -240,6 +264,123 @@ public class BackendClient extends WebSocketClient {
         envelope.addProperty("event", "file_manager_response");
         envelope.add("payload", responsePayload);
         this.send(envelope.toString());
+    }
+
+    private void handlePlayerPermissionsRequest(JsonObject payload) {
+        String requestId = payload.has("request_id") ? payload.get("request_id").getAsString() : "";
+        String playerUUID = payload.has("player_uuid") ? payload.get("player_uuid").getAsString() : "";
+
+        JsonObject responsePayload = new JsonObject();
+        responsePayload.addProperty("request_id", requestId);
+        responsePayload.addProperty("player_uuid", playerUUID);
+
+        Player player = null;
+        try {
+            player = Bukkit.getPlayer(java.util.UUID.fromString(playerUUID));
+        } catch (IllegalArgumentException ignored) {
+            // invalid uuid
+        }
+
+        if (player == null) {
+            responsePayload.addProperty("online", false);
+            responsePayload.add("permissions", new JsonArray());
+        } else {
+            responsePayload.addProperty("online", true);
+            JsonArray permissions = new JsonArray();
+            if (player.isOp()) {
+                permissions.add("beacon.access.*");
+                permissions.add("beacon.panel");
+            }
+            for (PermissionAttachmentInfo perm : player.getEffectivePermissions()) {
+                if (!perm.getValue()) continue;
+                permissions.add(perm.getPermission().toLowerCase(Locale.ROOT));
+            }
+            responsePayload.add("permissions", permissions);
+        }
+
+        sendEvent("player_permissions_response", responsePayload);
+    }
+
+    public boolean sendEvent(String eventName, JsonObject payload) {
+        if (!this.isOpen()) {
+            return false;
+        }
+        JsonObject envelope = new JsonObject();
+        envelope.addProperty("event", eventName);
+        envelope.add("payload", payload);
+        this.send(envelope.toString());
+        return true;
+    }
+
+    private void handlePermissionAdminRequest(JsonObject payload) {
+        String requestId = payload.has("request_id") ? payload.get("request_id").getAsString() : "";
+        String action = payload.has("action") ? payload.get("action").getAsString() : "";
+        String playerUUIDRaw = payload.has("player_uuid") ? payload.get("player_uuid").getAsString() : "";
+        String playerName = payload.has("player_name") ? payload.get("player_name").getAsString() : "";
+
+        JsonObject responsePayload = new JsonObject();
+        responsePayload.addProperty("request_id", requestId);
+        responsePayload.addProperty("action", action);
+        responsePayload.addProperty("player_uuid", playerUUIDRaw);
+
+        VaultPermissionService permissionService = plugin.getVaultPermissionService();
+        if (permissionService == null || !permissionService.isReady()) {
+            responsePayload.addProperty("ok", false);
+            responsePayload.addProperty("error", "vault permission provider unavailable");
+            sendEvent("permission_admin_response", responsePayload);
+            return;
+        }
+
+        UUID playerUUID = null;
+        if (!playerUUIDRaw.isBlank()) {
+            try {
+                playerUUID = UUID.fromString(playerUUIDRaw);
+            } catch (IllegalArgumentException ignored) {
+                playerUUID = null;
+            }
+        }
+
+        try {
+            if ("snapshot".equals(action)) {
+                JsonArray permissionNodes = payload.has("permission_nodes") ? payload.getAsJsonArray("permission_nodes") : new JsonArray();
+                List<String> nodes = new ArrayList<>();
+                for (int i = 0; i < permissionNodes.size(); i++) {
+                    nodes.add(permissionNodes.get(i).getAsString().toLowerCase(Locale.ROOT));
+                }
+                Map<String, Boolean> snapshot = permissionService.snapshotPermissions(playerUUID, playerName, nodes);
+
+                JsonObject permissionsJson = new JsonObject();
+                for (Map.Entry<String, Boolean> entry : snapshot.entrySet()) {
+                    permissionsJson.addProperty(entry.getKey(), entry.getValue());
+                }
+
+                responsePayload.addProperty("ok", true);
+                responsePayload.add("permissions", permissionsJson);
+                sendEvent("permission_admin_response", responsePayload);
+                return;
+            }
+
+            if ("set".equals(action)) {
+                String permissionNode = payload.has("permission_node") ? payload.get("permission_node").getAsString().toLowerCase(Locale.ROOT) : "";
+                boolean enabled = payload.has("enabled") && payload.get("enabled").getAsBoolean();
+
+                boolean changed = permissionService.setPermission(playerUUID, playerName, permissionNode, enabled);
+                responsePayload.addProperty("ok", changed);
+                if (!changed) {
+                    responsePayload.addProperty("error", "permission backend rejected update");
+                }
+                sendEvent("permission_admin_response", responsePayload);
+                return;
+            }
+
+            responsePayload.addProperty("ok", false);
+            responsePayload.addProperty("error", "unsupported permission admin action");
+            sendEvent("permission_admin_response", responsePayload);
+        } catch (Exception ex) {
+            responsePayload.addProperty("ok", false);
+            responsePayload.addProperty("error", ex.getMessage() == null ? "permission action failed" : ex.getMessage());
+            sendEvent("permission_admin_response", responsePayload);
+        }
     }
 
     private List<String> getCompletions(String commandLine) {

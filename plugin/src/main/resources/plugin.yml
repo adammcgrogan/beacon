@@ -3,3 +3,22 @@ version: 1.0
 main: net.trybeacon.plugin.BeaconPlugin
 api-version: '1.21'
 description: Connects the server to the Beacon Go Backend
+softdepend: [Vault]
+commands:
+  beacon:
+    description: Beacon panel authentication command
+    usage: /beacon panel
+    permission: beacon.panel
+permissions:
+  beacon.panel:
+    description: Allows generating a Beacon panel magic login link
+    default: op
+  beacon.access.*:
+    description: Full Beacon web panel access
+    default: op
+  beacon.access.access:
+    description: Allows viewing Beacon access management page
+    default: op
+  beacon.access.access.manage:
+    description: Allows managing sessions and permissions in Beacon access page
+    default: op
