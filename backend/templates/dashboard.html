@@ -171,10 +171,35 @@
                 const feed = document.getElementById('events-feed');
                 if (feed) feed.innerHTML = '<div id="no-events-msg" class="flex items-center justify-center h-full text-sm text-zinc-600 italic">Server offline.</div>';
             }
+            applyPermissionState();
+        }
+
+        function applyPermissionState() {
+            const grants = window.BeaconAuth?.grants || {};
+            const map = [
+                ['btn-stop', !!grants.can_stop_server],
+                ['btn-restart', !!grants.can_restart_server],
+                ['btn-save', !!grants.can_save_all]
+            ];
+            map.forEach(([id, allowed]) => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                if (!allowed || !pluginOnline) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            });
         }
 
         function sendPowerCommand(cmd) {
             if (!pluginOnline) return;
+            const grants = window.BeaconAuth?.grants || {};
+            if (cmd === 'stop' && !grants.can_stop_server) return;
+            if (cmd === 'restart' && !grants.can_restart_server) return;
+            if (cmd === 'save-all' && !grants.can_save_all) return;
             if (confirm(`Are you sure you want to run /${cmd}?`)) {
                 ws.send(JSON.stringify({ event: 'console_command', command: cmd }));
             }
@@ -278,6 +303,8 @@
                 document.getElementById('env-os').textContent = data.payload.os;
             }
         };
+
+        window.addEventListener('beacon:permissions', applyPermissionState);
 
         // Keep connection alive & verify status
         setInterval(() => {

@@ -135,12 +135,18 @@
 
         // --- 2. UI FUNCTIONS ---
         function setCommandControlsEnabled(enabled) {
+            const canUseConsole = !!window.BeaconAuth?.grants?.can_use_console;
+            const canSearchConsole = !!window.BeaconAuth?.grants?.can_view_console;
+            const finalEnabled = enabled && canUseConsole;
+
             input.disabled = !enabled;
-            searchInput.disabled = !enabled;
-            btn.disabled = !enabled;
-            btn.classList.toggle('opacity-50', !enabled);
-            btn.classList.toggle('cursor-not-allowed', !enabled);
-            if (!enabled) {
+            searchInput.disabled = !canSearchConsole;
+            btn.disabled = !finalEnabled;
+            btn.classList.toggle('opacity-50', !finalEnabled);
+            btn.classList.toggle('cursor-not-allowed', !finalEnabled);
+            input.disabled = !finalEnabled;
+
+            if (!finalEnabled) {
                 resetTabCompletionState();
             }
         }
@@ -341,6 +347,10 @@
                 appendLog('[Beacon] Cannot execute command while server is offline.', 'WARN');
                 return;
             }
+            if (!window.BeaconAuth?.grants?.can_use_console) {
+                appendLog('[Beacon] Permission denied.', 'WARN');
+                return;
+            }
 
             const cmd = input.value.trim();
             if (cmd) {
@@ -450,6 +460,7 @@
             if (data.event === 'console_log') appendLog(data.payload.message, data.payload.level);
             if (data.event === 'plugin_status') setPluginStatus(data.payload.status);
             if (data.event === 'command_rejected') appendLog('[Beacon] Command rejected: plugin is offline.', 'WARN');
+            if (data.event === 'permission_denied') appendLog('[Beacon] Permission denied.', 'WARN');
             if (data.event === 'console_tab_complete_result') {
                 const payload = data.payload || {};
                 if (payload.request_id !== pendingTabRequestId) return;
@@ -499,5 +510,6 @@
 
         // Init UI state
         setCommandControlsEnabled(false);
+        window.addEventListener('beacon:permissions', () => setCommandControlsEnabled(pluginOnline));
     </script>
 {{end}}

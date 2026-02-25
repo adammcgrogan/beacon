@@ -132,9 +132,10 @@
 
         function updateButtons() {
             const hasFileLoaded = !isDirectory && !!loadedPath;
-            saveBtn.disabled = !hasFileLoaded || !editor || !pluginOnline;
-            downloadBtn.disabled = !hasFileLoaded || !pluginOnline;
-            deleteBtn.disabled = !hasFileLoaded || !pluginOnline;
+            const grants = window.BeaconAuth?.grants || {};
+            saveBtn.disabled = !hasFileLoaded || !editor || !pluginOnline || !grants.can_edit_files;
+            downloadBtn.disabled = !hasFileLoaded || !pluginOnline || !grants.can_download_files;
+            deleteBtn.disabled = !hasFileLoaded || !pluginOnline || !grants.can_delete_files;
         }
 
         function renderBreadcrumbs(path) {
@@ -314,6 +315,13 @@
         });
 
         window.onpopstate = () => hydrate(getRoutePath());
+        window.addEventListener('beacon:permissions', () => {
+            if (!window.BeaconAuth?.grants?.can_view_files) {
+                window.location.replace('/');
+                return;
+            }
+            updateButtons();
+        });
 
         require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs' } });
         require(['vs/editor/editor.main'], () => {

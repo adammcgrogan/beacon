@@ -214,6 +214,7 @@
         function updatePanelContent() {
             if (!activeWorldName || !worldsData.has(activeWorldName)) return;
             const world = worldsData.get(activeWorldName);
+            const grants = window.BeaconAuth?.grants || {};
 
             // Header Info
             document.getElementById('panel-title').textContent = world.name;
@@ -242,6 +243,9 @@
                 loadBtn.textContent = 'Load World';
                 loadBtn.className = 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm py-2 rounded-lg transition-colors font-medium';
             }
+            loadBtn.disabled = !grants.can_manage_worlds;
+            loadBtn.classList.toggle('opacity-40', !grants.can_manage_worlds);
+            loadBtn.classList.toggle('cursor-not-allowed', !grants.can_manage_worlds);
 
             renderGamerules(world.gamerules);
         }
@@ -323,6 +327,10 @@
         // Base sender
         function sendWorldAction(action, extraPayload) {
             if (!pluginOnline || !activeWorldName) return;
+            const grants = window.BeaconAuth?.grants || {};
+            if (action === 'reset' && !grants.can_reset_worlds) return;
+            if (action === 'set_gamerule' && !grants.can_edit_gamerules) return;
+            if (!['reset', 'set_gamerule'].includes(action) && !grants.can_manage_worlds) return;
             
             let payload = { action: action, world: activeWorldName };
             
@@ -427,5 +435,8 @@
         setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ event: 'plugin_status_request' }));
         }, 2000);
+        window.addEventListener('beacon:permissions', () => {
+            if (activeWorldName) updatePanelContent();
+        });
     </script>
 {{end}}

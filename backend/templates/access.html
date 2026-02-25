@@ -1,0 +1,210 @@
+{{define "access"}}
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-white">Access Management</h1>
+        <p class="text-zinc-500 text-sm">Manage all known web users, revoke sessions, and update panel permissions via Vault.</p>
+    </div>
+
+    <div class="mb-4 flex items-center gap-2">
+        <button id="refresh-access" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 px-3 py-2 rounded-lg text-sm">Refresh</button>
+        <span id="access-status" class="text-xs text-zinc-500">Loading access data...</span>
+    </div>
+
+    <div id="access-users" class="space-y-6"></div>
+
+    <script>
+        const usersContainer = document.getElementById('access-users');
+        const statusEl = document.getElementById('access-status');
+        const refreshBtn = document.getElementById('refresh-access');
+
+        function formatTs(unixSeconds) {
+            if (!unixSeconds) return 'N/A';
+            return new Date(unixSeconds * 1000).toLocaleString();
+        }
+
+        function setStatus(msg, error = false) {
+            statusEl.textContent = msg;
+            statusEl.className = error ? 'text-xs text-red-400' : 'text-xs text-zinc-500';
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        async function fetchAccessData() {
+            setStatus('Loading access data...');
+            try {
+                const res = await fetch('/api/access/data');
+                if (!res.ok) throw new Error(`Request failed (${res.status})`);
+                const data = await res.json();
+                renderUsers(data.users || [], data.categories || []);
+                setStatus(`Loaded ${data.users?.length || 0} user(s).`);
+            } catch (err) {
+                usersContainer.innerHTML = `<div class="text-red-400 text-sm">${escapeHtml(err.message)}</div>`;
+                setStatus('Failed to load access data.', true);
+            }
+        }
+
+        function renderUsers(users, categories) {
+            const canManage = !!window.BeaconAuth?.grants?.can_manage_access;
+            if (!users.length) {
+                usersContainer.innerHTML = '<div class="text-zinc-500 italic">No sessions/users recorded yet.</div>';
+                return;
+            }
+
+            usersContainer.innerHTML = '';
+            users.forEach(user => {
+                const card = document.createElement('div');
+                card.className = 'bg-[#18181b] border border-zinc-800 rounded-xl p-5';
+
+                const sessions = Array.isArray(user.sessions) ? user.sessions : [];
+                const sessionsHtml = sessions.length
+                    ? sessions.map(s => `
+                        <div class="flex items-center justify-between px-3 py-2 rounded bg-zinc-900/50 border border-zinc-800 text-xs">
+                            <div class="space-y-0.5">
+                                <div class="text-zinc-200 mono">Session ${escapeHtml(s.id.slice(0, 12))}...</div>
+                                <div class="text-zinc-500">Created: ${escapeHtml(formatTs(s.created_at))}</div>
+                                <div class="text-zinc-500">Last Seen: ${escapeHtml(formatTs(s.last_seen))}</div>
+                                <div class="text-zinc-500">Expires: ${escapeHtml(formatTs(s.expires_at))}</div>
+                            </div>
+                            <button data-session-id="${escapeHtml(s.id)}" class="revoke-session bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 px-3 py-1.5 rounded font-semibold">
+                                Revoke
+                            </button>
+                        </div>
+                    `).join('')
+                    : '<div class="text-zinc-500 text-xs italic">No active sessions.</div>';
+
+                let permissionsHtml = '';
+                categories.forEach(category => {
+                    permissionsHtml += `
+                        <div class="space-y-2">
+                            <div class="text-xs uppercase text-zinc-500 tracking-wider">${escapeHtml(category.label)}</div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    `;
+                    (category.permissions || []).forEach(perm => {
+                        const checked = !!(user.permissions || {})[perm.node];
+                        permissionsHtml += `
+                            <label class="flex items-center gap-2 text-xs bg-zinc-900/50 border border-zinc-800 rounded px-2 py-1.5">
+                                <input type="checkbox"
+                                    class="perm-checkbox accent-blue-500"
+                                    data-player-uuid="${escapeHtml(user.player_uuid)}"
+                                    data-player-name="${escapeHtml(user.player_name)}"
+                                    data-node="${escapeHtml(perm.node)}"
+                                    ${checked ? 'checked' : ''}
+                                    ${canManage ? '' : 'disabled'}>
+                                <span class="text-zinc-200">${escapeHtml(perm.label)}</span>
+                                <span class="text-zinc-500 mono">${escapeHtml(perm.node)}</span>
+                            </label>
+                        `;
+                    });
+                    permissionsHtml += '</div></div>';
+                });
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-4 mb-4">
+                        <div>
+                            <h2 class="text-lg text-white font-semibold">${escapeHtml(user.player_name || 'Unknown')}</h2>
+                            <div class="text-xs mono text-zinc-500">${escapeHtml(user.player_uuid)}</div>
+                            <div class="text-xs text-zinc-500 mt-1">First Seen: ${escapeHtml(formatTs(user.first_seen))} • Last Seen: ${escapeHtml(formatTs(user.last_seen))}</div>
+                        </div>
+                    </div>
+                    <div class="mb-4 space-y-2">
+                        <div class="text-xs uppercase text-zinc-500 tracking-wider">Sessions</div>
+                        <div class="space-y-2">${sessionsHtml}</div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="text-xs uppercase text-zinc-500 tracking-wider">Permissions</div>
+                            <button class="toggle-permissions text-xs px-2 py-1 rounded border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-200">
+                                Expand
+                            </button>
+                        </div>
+                        <div class="permissions-panel hidden space-y-4">
+                            ${permissionsHtml}
+                        </div>
+                    </div>
+                `;
+
+                usersContainer.appendChild(card);
+            });
+
+            document.querySelectorAll('.revoke-session').forEach(btn => {
+                if (!canManage) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-40', 'cursor-not-allowed');
+                    return;
+                }
+                btn.addEventListener('click', async () => {
+                    const id = btn.getAttribute('data-session-id');
+                    if (!id) return;
+                    if (!confirm('Revoke this session now?')) return;
+                    try {
+                        const res = await fetch(`/api/access/sessions?session_id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+                        if (!res.ok) throw new Error('Failed to revoke session');
+                        await fetchAccessData();
+                    } catch (err) {
+                        setStatus(err.message, true);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.perm-checkbox').forEach(input => {
+                if (!canManage) {
+                    input.disabled = true;
+                    return;
+                }
+                input.addEventListener('change', async () => {
+                    const payload = {
+                        player_uuid: input.getAttribute('data-player-uuid'),
+                        player_name: input.getAttribute('data-player-name'),
+                        node: input.getAttribute('data-node'),
+                        enabled: input.checked
+                    };
+                    try {
+                        const res = await fetch('/api/access/permissions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!res.ok) {
+                            let msg = `Failed to update ${payload.node}`;
+                            try {
+                                const data = await res.json();
+                                if (data?.error) msg = data.error;
+                            } catch (_) {}
+                            throw new Error(msg);
+                        }
+                        setStatus(`Updated ${payload.node}`);
+                        if (payload.player_uuid === window.BeaconAuth?.session?.player_uuid) {
+                            window.dispatchEvent(new CustomEvent('beacon:permissions', { detail: window.BeaconAuth }));
+                        }
+                    } catch (err) {
+                        input.checked = !input.checked;
+                        setStatus(err.message, true);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.toggle-permissions').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const panel = btn.closest('.space-y-4')?.querySelector('.permissions-panel');
+                    if (!panel) return;
+                    const hidden = panel.classList.toggle('hidden');
+                    btn.textContent = hidden ? 'Expand' : 'Collapse';
+                });
+            });
+        }
+
+        refreshBtn.addEventListener('click', fetchAccessData);
+        window.addEventListener('beacon:permissions', () => {
+            if (!window.BeaconAuth?.grants?.can_view_access) {
+                window.location.replace('/');
+            }
+        });
+        fetchAccessData();
+    </script>
+{{end}}

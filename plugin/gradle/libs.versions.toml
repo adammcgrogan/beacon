@@ -5,6 +5,7 @@ runpaper = "3.0.2"
 
 # Libraries
 paper = "1.21.11-R0.1-SNAPSHOT"
+vault = "1.7.1"
 log4j = "2.19.0"
 websocket = "1.5.3"
 
@@ -14,5 +15,6 @@ runpaper = { id = "xyz.jpenilla.run-paper", version.ref = "runpaper" }
 
 [libraries]
 paper = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
+vault = { module = "com.github.MilkBowl:VaultAPI", version.ref = "vault" }
 log4j = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
 websocket = { module = "org.java-websocket:Java-WebSocket", version.ref = "websocket" }
