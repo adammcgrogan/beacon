@@ -273,7 +273,28 @@ func (a *AuthManager) persistState() {
 		return
 	}
 
-	path := filepath.Clean(a.statePath)
+	cleanPath := filepath.Clean(a.statePath)
+
+	// Ensure the auth state file path stays within the current working directory.
+	baseDir, err := os.Getwd()
+	if err != nil {
+		log.Printf("beacon auth: failed to determine working directory: %v", err)
+		return
+	}
+	baseDir = filepath.Clean(baseDir)
+
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		log.Printf("beacon auth: failed to resolve absolute state path: %v", err)
+		return
+	}
+
+	if absPath != baseDir && !strings.HasPrefix(absPath, baseDir+string(os.PathSeparator)) {
+		log.Printf("beacon auth: refusing to write state outside working directory: %s", absPath)
+		return
+	}
+
+	path := absPath
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		log.Printf("beacon auth: failed creating state directory: %v", err)
 		return
