@@ -1,4 +1,5 @@
 backend:
+  port: 8080
   websocket-url: "ws://localhost:8080/ws"
   public-url: "http://localhost:8080"
 

@@ -1,15 +1,43 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"html/template"
+	"io/fs"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
+	"path"
+	"strings"
 
+	beaconassets "github.com/adammcgrogan/beacon"
 	"github.com/adammcgrogan/beacon/internal/handlers"
 	"github.com/adammcgrogan/beacon/internal/store"
 )
 
+var version = "1.0.0"
+
 func main() {
+	portFlag := flag.String("port", "8080", "Port for the HTTP/WebSocket server")
+	flag.Parse()
+
+	port := strings.TrimSpace(*portFlag)
+	if port == "" {
+		port = "8080"
+	}
+
+	templateSet, err := template.ParseFS(beaconassets.FS, "templates/*.html")
+	if err != nil {
+		log.Fatalf("failed to parse templates: %v", err)
+	}
+
+	staticFS, err := fs.Sub(beaconassets.FS, "static")
+	if err != nil {
+		log.Fatalf("failed to initialize static assets: %v", err)
+	}
+
 	// 1. Initialize centralized state
 	serverStore := store.New()
 	authManager := handlers.NewAuthManager()
@@ -23,10 +51,10 @@ func main() {
 	}
 
 	// 3. Initialize our UI handlers with access to the store and WebSocket manager
-	ui := handlers.NewUIHandler(serverStore, ws, authManager)
+	ui := handlers.NewUIHandler(serverStore, ws, templateSet, authManager)
 
-	// Static Files (Adjust path based on where you run the binary from)
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("../../static"))))
+	// Static files served from the embedded filesystem.
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	// 4. Mount Page Routes
 	http.HandleFunc("/auth", ui.HandleAuthPage)
@@ -56,6 +84,8 @@ func main() {
 	http.HandleFunc("/ws", ws.HandleMinecraft)
 	http.HandleFunc("/ws/web", ws.HandleWeb)
 
-	fmt.Println("🚀 Beacon Backend running on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	address := net.JoinHostPort("", port)
+	baseURL := url.URL{Scheme: "http", Host: net.JoinHostPort("localhost", port), Path: path.Clean("/")}
+	fmt.Printf("Beacon Backend %s running on %s\n", version, baseURL.String())
+	log.Fatal(http.ListenAndServe(address, nil))
 }
