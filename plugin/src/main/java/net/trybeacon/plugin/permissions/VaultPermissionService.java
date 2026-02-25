@@ -50,7 +50,7 @@ public class VaultPermissionService {
         }
 
         for (String node : permissionNodes) {
-            boolean has = provider.playerHas((String) null, playerName, node);
+            boolean has = provider.playerHas(null, Bukkit.getOfflinePlayer(playerName), node);
             result.put(node, has);
         }
         return result;
