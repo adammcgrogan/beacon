@@ -255,4 +255,13 @@ func (h *UIHandler) requirePageFileViewPermission(w http.ResponseWriter, r *http
 func (h *UIHandler) sessionFromContext(r *http.Request) SessionClaims {
 	claims, _ := r.Context().Value(sessionContextKey).(SessionClaims)
 	return claims
+func (h *UIHandler) HandleGameruleDefaults(w http.ResponseWriter, r *http.Request) {
+	defaults := h.Store.GetStats().DefaultGamerules
+
+	if defaults == nil {
+		defaults = make(map[string]string)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(defaults)
 }

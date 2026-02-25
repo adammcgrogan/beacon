@@ -112,7 +112,7 @@
         function kickPlayer(playerName) { 
             if (!window.BeaconAuth?.grants?.can_kick_players) return;
             if (!pluginOnline) return;
-            const reason = prompt(`Enter kick reason for ${playerName}:`, "Kicked via Beacon Dashboard");
+            const reason = await window.beaconPrompt(`Enter kick reason for ${playerName}:`, "Kicked via Beacon Dashboard");
             if (reason !== null) {
                 ws.send(JSON.stringify({ event: 'console_command', command: `kick ${playerName} ${reason}` })); 
             }
@@ -121,7 +121,7 @@
         function banPlayer(playerName) {
             if (!window.BeaconAuth?.grants?.can_ban_players) return;
             if (!pluginOnline) return;
-            const reason = prompt(`Enter ban reason for ${playerName}:`, "Banned via Beacon Dashboard");
+            const reason = await window.beaconPrompt(`Enter ban reason for ${playerName}:`, "Banned via Beacon Dashboard");
             if (reason !== null) {
                 ws.send(JSON.stringify({ event: 'console_command', command: `ban ${playerName} ${reason}` }));
             }

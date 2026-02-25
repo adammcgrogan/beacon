@@ -288,7 +288,8 @@
 
         async function deleteCurrentFile() {
             if (!loadedPath || !pluginOnline) return;
-            if (!confirm(`Delete ${loadedPath}? This action cannot be undone.`)) return;
+            const confirmed = await window.beaconConfirm(`Delete ${loadedPath}? This action cannot be undone.`);
+            if (!confirmed) return;
             try {
                 await apiFetch(`/api/files?path=${encodeURIComponent(loadedPath)}`, { method: 'DELETE' });
                 const backTo = parentPath(loadedPath);

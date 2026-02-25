@@ -407,7 +407,7 @@
         shareBtn.onclick = async () => {
             const visibleLogs = Array.from(logsContainer.children).filter(el => !el.classList.contains('hidden'));
             if (visibleLogs.length === 0) {
-                alert("No logs to share!");
+                await window.beaconAlert("No logs to share!");
                 return;
             }
 

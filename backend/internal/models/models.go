@@ -1,12 +1,13 @@
 package models
 
 type ServerStats struct {
-	Players    int          `json:"players"`
-	MaxPlayers int          `json:"max_players"`
-	TPS        string       `json:"tps"`
-	RamUsed    int64        `json:"ram_used"`
-	RamMax     int64        `json:"ram_max"`
-	PlayerList []PlayerInfo `json:"player_list"`
+	Players          int               `json:"players"`
+	MaxPlayers       int               `json:"max_players"`
+	TPS              string            `json:"tps"`
+	RamUsed          int64             `json:"ram_used"`
+	RamMax           int64             `json:"ram_max"`
+	PlayerList       []PlayerInfo      `json:"player_list"`
+	DefaultGamerules map[string]string `json:"default_gamerules"`
 }
 
 type PlayerInfo struct {

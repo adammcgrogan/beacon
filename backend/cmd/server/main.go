@@ -50,6 +50,7 @@ func main() {
 	http.HandleFunc("/api/access/data", ui.RequireAPIAuth(ui.HandleAccessData))
 	http.HandleFunc("/api/access/sessions", ui.RequireAPIAuth(ui.HandleAccessSessionDelete))
 	http.HandleFunc("/api/access/permissions", ui.RequireAPIAuth(ui.HandleAccessPermissionUpdate))
+	http.HandleFunc("/api/gamerules/defaults", ui.HandleGameruleDefaults)
 
 	// 5. Mount WebSocket Routes
 	http.HandleFunc("/ws", ws.HandleMinecraft)

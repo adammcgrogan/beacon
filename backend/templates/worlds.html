@@ -86,18 +86,19 @@
         let activeWorldName = null;
 
         // Standard vanilla Minecraft defaults
-        const vanillaDefaultGamerules = {
-            announceAdvancements: "true", commandBlockOutput: "true", disableElytraMovementCheck: "false",
-            disableRaids: "false", doDaylightCycle: "true", doEntityDrops: "true", doFireTick: "true",
-            doInsomnia: "true", doImmediateRespawn: "false", doLimitedCrafting: "false", doMobLoot: "true",
-            doMobSpawning: "true", doPatrolSpawning: "true", doTileDrops: "true", doTraderSpawning: "true",
-            doWeatherCycle: "true", drowningDamage: "true", fallDamage: "true", fireDamage: "true",
-            forgiveDeadPlayers: "true", freezeDamage: "true", keepInventory: "false", logAdminCommands: "true",
-            maxCommandChainLength: "65536", maxEntityCramming: "24", mobGriefing: "true", naturalRegeneration: "true",
-            playersSleepingPercentage: "100", randomTickSpeed: "3", reducedDebugInfo: "false",
-            sendCommandFeedback: "true", showDeathMessages: "true", spawnRadius: "10", 
-            spectatorsGenerateChunks: "true", universalAnger: "false"
-        };
+        let vanillaDefaultGamerules = {};
+
+        async function fetchGameruleDefaults() {
+            try {
+                const response = await fetch('/api/gamerules/defaults');
+                vanillaDefaultGamerules = await response.json();
+                console.log("Loaded gamerule defaults from API");
+            } catch (err) {
+                console.error("Failed to load gamerule defaults:", err);
+            }
+        }
+
+        fetchGameruleDefaults();
 
         // --- 1. UI UPDATERS ---
         function setPluginStatus(status) {
@@ -383,10 +384,11 @@
             }
         }
 
-        function resetGamerules() {
+        async function resetGamerules() {
             if (!activeWorldName || !worldsData.has(activeWorldName)) return;
             
-            if (confirm("Are you sure you want to reset all gamerules to standard Minecraft defaults?")) {
+            const confirmed = await window.beaconConfirm("Are you sure you want to reset all gamerules to standard Minecraft defaults?");
+            if (confirmed) {
                 const currentWorld = worldsData.get(activeWorldName);
                 
                 for (const [rule, defaultValue] of Object.entries(vanillaDefaultGamerules)) {
@@ -400,18 +402,20 @@
             }
         }
 
-        function toggleWorldLoad() {
+        async function toggleWorldLoad() {
             const world = worldsData.get(activeWorldName);
             const action = world.loaded !== false ? 'unload' : 'load';
             
-            if (action === 'unload' && !confirm(`Are you sure you want to UNLOAD ${activeWorldName}? Players inside may be kicked to spawn.`)) {
-                return;
+            if (action === 'unload') {
+                const confirmed = await window.beaconConfirm(`Are you sure you want to UNLOAD ${activeWorldName}? Players inside may be kicked to spawn.`);
+                if (!confirmed) return;
             }
             sendWorldAction(action);
         }
 
-        function promptReset() {
-            if (confirm(`DANGER: Are you sure you want to permanently reset and wipe the dimension '${activeWorldName}'? This cannot be undone.`)) {
+        async function promptReset() {
+            const confirmed = await window.beaconConfirm(`DANGER: Are you sure you want to permanently reset and wipe the dimension '${activeWorldName}'? This cannot be undone.`);
+            if (confirmed) {
                 sendWorldAction('reset');
                 closePanel();
             }

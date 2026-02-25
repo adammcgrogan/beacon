@@ -177,6 +177,73 @@
         applyBasePermissions(window.BeaconAuth.grants);
         setInterval(refreshSessionPermissions, 10000);
         refreshSessionPermissions();
+
+    <div id="global-modal-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden transition-opacity duration-200 opacity-0"></div>
+    <div id="global-modal" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] md:w-[400px] bg-[#121214] border border-zinc-800 rounded-xl shadow-2xl z-[100] hidden opacity-0 scale-95 transition-all duration-200 flex flex-col overflow-hidden">
+        <div class="p-5 border-b border-zinc-800 bg-[#18181b]">
+            <h2 id="global-modal-title" class="text-lg font-bold text-white">Attention</h2>
+        </div>
+        <div class="p-5 text-sm text-zinc-300">
+            <p id="global-modal-message" class="mb-4"></p>
+            <input type="text" id="global-modal-input" class="hidden w-full bg-[#09090b] border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 transition-colors">
+        </div>
+        <div class="p-4 bg-[#09090b] border-t border-zinc-800 flex justify-end gap-3" id="global-modal-actions">
+            <button id="global-modal-cancel" class="px-4 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors hidden">Cancel</button>
+            <button id="global-modal-confirm" class="px-4 py-2 rounded-lg text-sm font-bold bg-blue-600 text-white hover:bg-blue-500 transition-colors">OK</button>
+        </div>
+    </div>
+
+    <script>
+        window.customModal = function(type, message, defaultValue = '') {
+            return new Promise((resolve) => {
+                const backdrop = document.getElementById('global-modal-backdrop');
+                const modal = document.getElementById('global-modal');
+                const titleEl = document.getElementById('global-modal-title');
+                const messageEl = document.getElementById('global-modal-message');
+                const inputEl = document.getElementById('global-modal-input');
+                const cancelBtn = document.getElementById('global-modal-cancel');
+                const confirmBtn = document.getElementById('global-modal-confirm');
+
+                messageEl.textContent = message;
+                inputEl.classList.add('hidden');
+                cancelBtn.classList.add('hidden');
+                inputEl.value = '';
+
+                if (type === 'alert') {
+                    titleEl.textContent = 'Alert';
+                    confirmBtn.textContent = 'OK';
+                    confirmBtn.className = 'px-4 py-2 rounded-lg text-sm font-bold bg-blue-600 text-white hover:bg-blue-500 transition-colors';
+                } else if (type === 'confirm') {
+                    titleEl.textContent = 'Confirmation Required';
+                    cancelBtn.classList.remove('hidden');
+                    confirmBtn.textContent = 'Confirm';
+                    confirmBtn.className = 'px-4 py-2 rounded-lg text-sm font-bold bg-amber-600 text-white hover:bg-amber-500 transition-colors';
+                } else if (type === 'prompt') {
+                    titleEl.textContent = 'Input Required';
+                    cancelBtn.classList.remove('hidden');
+                    inputEl.classList.remove('hidden');
+                    inputEl.value = defaultValue;
+                    confirmBtn.textContent = 'Submit';
+                    confirmBtn.className = 'px-4 py-2 rounded-lg text-sm font-bold bg-blue-600 text-white hover:bg-blue-500 transition-colors';
+                }
+
+                backdrop.classList.remove('hidden');
+                modal.classList.remove('hidden');
+                setTimeout(() => { backdrop.classList.remove('opacity-0'); modal.classList.remove('opacity-0', 'scale-95'); if (type === 'prompt') inputEl.focus(); }, 10);
+
+                const cleanup = () => {
+                    backdrop.classList.add('opacity-0'); modal.classList.add('opacity-0', 'scale-95');
+                    setTimeout(() => { backdrop.classList.add('hidden'); modal.classList.add('hidden'); }, 200);
+                };
+
+                confirmBtn.onclick = () => { cleanup(); resolve(type === 'prompt' ? inputEl.value : true); };
+                cancelBtn.onclick = () => { cleanup(); resolve(type === 'prompt' ? null : false); };
+                inputEl.onkeydown = (e) => { if (e.key === 'Enter') confirmBtn.click(); if (e.key === 'Escape') cancelBtn.click(); };
+            });
+        };
+        window.beaconAlert = (msg) => window.customModal('alert', msg);
+        window.beaconConfirm = (msg) => window.customModal('confirm', msg);
+        window.beaconPrompt = (msg, def = '') => window.customModal('prompt', msg, def);
     </script>
 </body>
 </html>
