@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/adammcgrogan/beacon/internal/models"
 	"github.com/adammcgrogan/beacon/internal/store"
@@ -15,6 +18,7 @@ var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { retu
 
 type WebSocketManager struct {
 	Store       *store.ServerStore
+	Auth        *AuthManager
 	webClients  map[*websocket.Conn]bool
 	clientsLock sync.Mutex
 	mcConn      *websocket.Conn
@@ -23,6 +27,12 @@ type WebSocketManager struct {
 
 	fileReqLock        sync.Mutex
 	pendingFileReqByID map[string]chan fileManagerResponse
+
+	permReqLock        sync.Mutex
+	pendingPermReqByID map[string]chan playerPermissionsResponse
+
+	permissionAdminReqLock        sync.Mutex
+	pendingPermissionAdminReqByID map[string]chan permissionAdminResponse
 }
 
 // HandleMinecraft handles the connection from the Java plugin
@@ -41,6 +51,8 @@ func (m *WebSocketManager) HandleMinecraft(w http.ResponseWriter, r *http.Reques
 	defer func() {
 		m.setMinecraftConn(nil)
 		m.failAllPendingFileRequests("plugin disconnected")
+		m.failAllPendingPermissionRequests()
+		m.failAllPendingPermissionAdminRequests()
 		m.broadcastPluginStatus(false)
 		fmt.Println("🔴 Minecraft Server Disconnected.")
 	}()
@@ -86,10 +98,46 @@ func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) bool {
 		if err := json.Unmarshal(envelope.Payload, &env); err == nil {
 			m.Store.UpdateEnv(env)
 		}
+	case "plugin_paths":
+		if m.Auth != nil {
+			var payload struct {
+				PluginDataDir string `json:"plugin_data_dir"`
+			}
+			if err := json.Unmarshal(envelope.Payload, &payload); err == nil {
+				m.Auth.SetPluginDataDir(payload.PluginDataDir)
+			}
+		}
+		return false
 	case "file_manager_response":
 		var response fileManagerResponse
 		if err := json.Unmarshal(envelope.Payload, &response); err == nil {
 			m.resolvePendingFileRequest(response)
+		}
+		return false
+	case "auth_token_issued":
+		if m.Auth != nil {
+			var payload struct {
+				Token         string   `json:"token"`
+				PlayerUUID    string   `json:"player_uuid"`
+				PlayerName    string   `json:"player_name"`
+				ExpiresAtUnix int64    `json:"expires_at_unix"`
+				Permissions   []string `json:"permissions"`
+			}
+			if err := json.Unmarshal(envelope.Payload, &payload); err == nil {
+				m.Auth.StoreMagicToken(payload.Token, payload.PlayerUUID, payload.PlayerName, payload.ExpiresAtUnix, payload.Permissions)
+			}
+		}
+		return false
+	case "player_permissions_response":
+		var response playerPermissionsResponse
+		if err := json.Unmarshal(envelope.Payload, &response); err == nil {
+			m.resolvePendingPermissionsRequest(response)
+		}
+		return false
+	case "permission_admin_response":
+		var response permissionAdminResponse
+		if err := json.Unmarshal(envelope.Payload, &response); err == nil {
+			m.resolvePendingPermissionAdminRequest(response)
 		}
 		return false
 	}
@@ -99,6 +147,16 @@ func (m *WebSocketManager) processMinecraftMessage(messageBytes []byte) bool {
 
 // HandleWeb handles browser UI connections
 func (m *WebSocketManager) HandleWeb(w http.ResponseWriter, r *http.Request) {
+	if m.Auth == nil {
+		http.Error(w, "auth unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	session, err := m.Auth.ReadSessionClaims(r)
+	if err != nil {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
@@ -134,8 +192,17 @@ func (m *WebSocketManager) HandleWeb(w http.ResponseWriter, r *http.Request) {
 			m.sendPluginStatus(conn)
 			continue
 		case "clear_logs":
+			if !m.authorizeSessionEvent(r.Context(), session, envelope.Event, messageBytes) {
+				_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"event":"permission_denied","payload":{"reason":"clear_logs"}}`))
+				continue
+			}
 			m.Store.ClearLogs()
 			m.broadcastToWeb([]byte(`{"event":"clear_logs"}`))
+			continue
+		}
+
+		if !m.authorizeSessionEvent(r.Context(), session, envelope.Event, messageBytes) {
+			_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"event":"permission_denied","payload":{"reason":"forbidden"}}`))
 			continue
 		}
 
@@ -164,6 +231,8 @@ func (m *WebSocketManager) forwardToMinecraft(webConn *websocket.Conn, raw []byt
 		_ = webConn.WriteMessage(websocket.TextMessage, []byte(`{"event":"command_rejected","payload":{"reason":"plugin_offline"}}`))
 		m.setMinecraftConn(nil)
 		m.failAllPendingFileRequests("plugin disconnected")
+		m.failAllPendingPermissionRequests()
+		m.failAllPendingPermissionAdminRequests()
 		m.broadcastPluginStatus(false)
 	}
 }
@@ -218,4 +287,72 @@ func (m *WebSocketManager) broadcastPluginStatus(online bool) {
 		status = "online"
 	}
 	m.broadcastToWeb([]byte(fmt.Sprintf(`{"event":"plugin_status","payload":{"status":"%s"}}`, status)))
+}
+
+func (m *WebSocketManager) authorizeSessionEvent(parent context.Context, session SessionClaims, event string, raw []byte) bool {
+	if m.Auth == nil {
+		return false
+	}
+
+	// Respect the parent context's deadline; only add a timeout if none is set.
+	ctx := parent
+	cancel := func() {}
+	if _, ok := parent.Deadline(); !ok {
+		ctxWithTimeout, c := context.WithTimeout(parent, 4*time.Second)
+		ctx = ctxWithTimeout
+		cancel = c
+	}
+	defer cancel()
+	permissions, _, err := m.Auth.GetPermissions(ctx, m, session.PlayerUUID)
+	if err != nil && err != ErrPluginOffline {
+		return false
+	}
+
+	switch event {
+	case "console_tab_complete":
+		return HasPermission(permissions, PermConsoleUse)
+	case "console_command":
+		var cmdEnvelope struct {
+			Command string `json:"command"`
+		}
+		if err := json.Unmarshal(raw, &cmdEnvelope); err != nil {
+			return false
+		}
+		command := strings.ToLower(strings.TrimSpace(cmdEnvelope.Command))
+		switch {
+		case command == "stop" || strings.HasPrefix(command, "stop "):
+			return HasPermission(permissions, PermServerStop)
+		case command == "restart" || strings.HasPrefix(command, "restart "):
+			return HasPermission(permissions, PermServerRestart)
+		case command == "save-all" || strings.HasPrefix(command, "save-all "):
+			return HasPermission(permissions, PermServerSaveAll)
+		case command == "kick" || strings.HasPrefix(command, "kick "):
+			return HasPermission(permissions, PermPlayersKick)
+		case command == "ban" || strings.HasPrefix(command, "ban "):
+			return HasPermission(permissions, PermPlayersBan)
+		default:
+			return HasPermission(permissions, PermConsoleUse)
+		}
+	case "world_action":
+		var worldEnvelope struct {
+			Payload struct {
+				Action string `json:"action"`
+			} `json:"payload"`
+		}
+		if err := json.Unmarshal(raw, &worldEnvelope); err != nil {
+			return false
+		}
+		switch worldEnvelope.Payload.Action {
+		case "reset":
+			return HasPermission(permissions, PermWorldsReset)
+		case "set_gamerule":
+			return HasPermission(permissions, PermWorldsGamerules)
+		default:
+			return HasPermission(permissions, PermWorldsManage)
+		}
+	case "clear_logs":
+		return HasPermission(permissions, PermConsoleUse)
+	default:
+		return false
+	}
 }

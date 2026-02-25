@@ -29,34 +29,51 @@
         </div>
         
         <div class="space-y-1 flex-1">
-            <a href="/" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "dashboard"}}active{{end}}">
+            {{if .Grants.CanViewDashboard}}
+            <a id="nav-dashboard" href="/" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "dashboard"}}active{{end}}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v12a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z"></path></svg>
                 Dashboard
             </a>
-            <a href="/console" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "console"}}active{{end}}">
+            {{end}}
+            {{if .Grants.CanViewConsole}}
+            <a id="nav-console" href="/console" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "console"}}active{{end}}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                 Live Console
             </a>
-            <a href="/players" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "players"}}active{{end}}">
+            {{end}}
+            {{if .Grants.CanViewPlayers}}
+            <a id="nav-players" href="/players" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "players"}}active{{end}}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                 Players
             </a>
-            <a href="/worlds" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "worlds"}}active{{end}}">
+            {{end}}
+            {{if .Grants.CanViewWorlds}}
+            <a id="nav-worlds" href="/worlds" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "worlds"}}active{{end}}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 Worlds
             </a>
-            <a href="/files" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "files"}}active{{end}}">
+            {{end}}
+            {{if .Grants.CanViewFiles}}
+            <a id="nav-files" href="/files" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "files"}}active{{end}}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"></path></svg>
                 Files
             </a>
+            {{end}}
+            {{if .Grants.CanViewAccess}}
+            <a id="nav-access" href="/access" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-md transition-all hover:text-white hover:bg-zinc-900 {{if eq .ActiveTab "access"}}active{{end}}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L15 12l-5.25-5M3 12h12m0 0a9 9 0 1018 0 9 9 0 00-18 0z"></path></svg>
+                Access
+            </a>
+            {{end}}
         </div>
 
         <div class="pt-4 border-t border-zinc-800">
             <div class="px-3 py-2 text-xs font-semibold text-zinc-500 uppercase">System Status</div>
             <div class="flex items-center gap-2 px-3 py-2 text-sm">
                 <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span class="text-zinc-300">Connected</span>
+                <span class="text-zinc-300" id="session-user">{{.Session.PlayerName}}</span>
             </div>
+            <button id="logout-btn" class="mt-2 w-full text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3 py-2 rounded-lg transition-colors">Logout</button>
         </div>
     </nav>
 
@@ -65,8 +82,102 @@
         {{else if eq .ActiveTab "console"}}{{template "console" .}}
         {{else if eq .ActiveTab "players"}}{{template "players" .}}
         {{else if eq .ActiveTab "worlds"}}{{template "worlds" .}}
-        {{else if eq .ActiveTab "files"}}{{template "files" .}}{{end}}
+        {{else if eq .ActiveTab "files"}}{{template "files" .}}
+        {{else if eq .ActiveTab "access"}}{{template "access" .}}{{end}}
     </main>
+    <script>
+        window.BeaconAuth = {
+            session: {
+                player_uuid: "{{.Session.PlayerUUID}}",
+                player_name: "{{.Session.PlayerName}}",
+                expires_at: {{.Session.ExpiresAt}}
+            },
+            grants: {
+                can_view_dashboard: {{.Grants.CanViewDashboard}},
+                can_view_console: {{.Grants.CanViewConsole}},
+                can_use_console: {{.Grants.CanUseConsole}},
+                can_view_players: {{.Grants.CanViewPlayers}},
+                can_kick_players: {{.Grants.CanKickPlayers}},
+                can_ban_players: {{.Grants.CanBanPlayers}},
+                can_view_worlds: {{.Grants.CanViewWorlds}},
+                can_manage_worlds: {{.Grants.CanManageWorlds}},
+                can_reset_worlds: {{.Grants.CanResetWorlds}},
+                can_edit_gamerules: {{.Grants.CanEditGamerules}},
+                can_stop_server: {{.Grants.CanStopServer}},
+                can_restart_server: {{.Grants.CanRestartServer}},
+                can_save_all: {{.Grants.CanSaveAll}},
+                can_view_files: {{.Grants.CanViewFiles}},
+                can_edit_files: {{.Grants.CanEditFiles}},
+                can_delete_files: {{.Grants.CanDeleteFiles}},
+                can_download_files: {{.Grants.CanDownloadFiles}},
+                can_view_access: {{.Grants.CanViewAccess}},
+                can_manage_access: {{.Grants.CanManageAccess}}
+            },
+            permissions: []
+        };
+
+        function applyBasePermissions(grants) {
+            const nav = [
+                ['nav-dashboard', !!grants.can_view_dashboard],
+                ['nav-console', !!grants.can_view_console],
+                ['nav-players', !!grants.can_view_players],
+                ['nav-worlds', !!grants.can_view_worlds],
+                ['nav-files', !!grants.can_view_files],
+                ['nav-access', !!grants.can_view_access]
+            ];
+            nav.forEach(([id, allowed]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.classList.toggle('hidden', !allowed);
+            });
+            const path = window.location.pathname;
+            if (path === '/console' && !grants.can_view_console) window.location.replace('/');
+            if (path === '/players' && !grants.can_view_players) window.location.replace('/');
+            if (path === '/worlds' && !grants.can_view_worlds) window.location.replace('/');
+            if (path.startsWith('/files') && !grants.can_view_files) window.location.replace('/');
+            if (path === '/access' && !grants.can_view_access) window.location.replace('/');
+            if (path === '/' && !grants.can_view_dashboard) {
+                const firstAllowed = nav.find(([_, allowed]) => allowed);
+                if (firstAllowed) {
+                    const target = document.getElementById(firstAllowed[0])?.getAttribute('href');
+                    if (target) window.location.replace(target);
+                }
+            }
+        }
+
+        async function refreshSessionPermissions() {
+            try {
+                const response = await fetch('/api/session');
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.replace('/auth');
+                    }
+                    return;
+                }
+                const data = await response.json();
+                window.BeaconAuth.session = {
+                    player_uuid: data.player_uuid,
+                    player_name: data.player_name,
+                    expires_at: data.expires_at
+                };
+                window.BeaconAuth.permissions = data.permissions || [];
+                window.BeaconAuth.grants = data.grants || {};
+                applyBasePermissions(window.BeaconAuth.grants);
+                window.dispatchEvent(new CustomEvent('beacon:permissions', { detail: window.BeaconAuth }));
+            } catch (_) {}
+        }
+
+        document.getElementById('logout-btn')?.addEventListener('click', async () => {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+            } catch (_) {}
+            window.location.replace('/auth');
+        });
+
+        applyBasePermissions(window.BeaconAuth.grants);
+        setInterval(refreshSessionPermissions, 10000);
+        refreshSessionPermissions();
+    </script>
 
     <div id="global-modal-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden transition-opacity duration-200 opacity-0"></div>
     <div id="global-modal" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] md:w-[400px] bg-[#121214] border border-zinc-800 rounded-xl shadow-2xl z-[100] hidden opacity-0 scale-95 transition-all duration-200 flex flex-col overflow-hidden">

@@ -1,0 +1,6 @@
+backend:
+  websocket-url: "ws://localhost:8080/ws"
+  public-url: "http://localhost:8080"
+
+auth:
+  token-expiration-seconds: 300
