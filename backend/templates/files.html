@@ -5,9 +5,18 @@
             <p id="files-status-subtitle" class="text-zinc-500 text-sm">Browse, edit, delete, and download files.</p>
         </div>
         <div class="flex gap-2">
-            <button id="save-btn" class="bg-emerald-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Save</button>
-            <button id="download-btn" class="bg-zinc-800 text-zinc-100 font-semibold px-4 py-2 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Download</button>
-            <button id="delete-btn" class="bg-red-600/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Delete</button>
+            <button id="save-btn" class="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-sm font-medium px-4 py-2 rounded-lg hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                Save
+            </button>
+            <button id="download-btn" class="flex items-center gap-2 bg-zinc-800/50 text-zinc-300 border border-zinc-700/50 text-sm font-medium px-4 py-2 rounded-lg hover:bg-zinc-800 hover:border-zinc-600 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Download
+            </button>
+            <button id="delete-btn" class="flex items-center gap-2 bg-red-500/10 text-red-400 border border-red-500/20 text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                Delete
+            </button>
         </div>
     </div>
 
@@ -15,7 +24,27 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 h-[72vh]">
         <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
-            <div class="px-4 py-3 border-b border-zinc-800 text-xs uppercase tracking-wider text-zinc-500">Directory</div>
+            <div class="px-4 py-2.5 border-b border-zinc-800 flex justify-between items-center text-xs uppercase tracking-wider text-zinc-500">
+                <span>Directory</span>
+                <div class="flex gap-1">
+                    <button id="new-file-btn" class="p-1.5 hover:text-zinc-300 hover:bg-zinc-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="New File">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    </button>
+                    <button id="new-folder-btn" class="p-1.5 hover:text-zinc-300 hover:bg-zinc-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="New Folder">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+                    </button>
+                    <button id="upload-file-btn" class="p-1.5 hover:text-zinc-300 hover:bg-zinc-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Upload File">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    </button>
+                    <button id="upload-folder-btn" class="p-1.5 hover:text-zinc-300 hover:bg-zinc-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative" title="Upload Folder">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"></path></svg>
+                        <svg class="w-3 h-3 absolute bottom-1 right-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    </button>
+                    
+                    <input type="file" id="file-upload-input" class="hidden" multiple>
+                    <input type="file" id="folder-upload-input" class="hidden" webkitdirectory directory multiple>
+                </div>
+            </div>
             <div id="file-list" class="overflow-y-auto flex-1"></div>
         </div>
         <div class="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
@@ -32,9 +61,17 @@
         const breadcrumbEl = document.getElementById('path-breadcrumbs');
         const editorHeader = document.getElementById('editor-header');
         const statusBar = document.getElementById('status-bar');
+        
         const saveBtn = document.getElementById('save-btn');
         const downloadBtn = document.getElementById('download-btn');
         const deleteBtn = document.getElementById('delete-btn');
+        
+        const newFileBtn = document.getElementById('new-file-btn');
+        const newFolderBtn = document.getElementById('new-folder-btn');
+        const uploadFileBtn = document.getElementById('upload-file-btn');
+        const uploadFolderBtn = document.getElementById('upload-folder-btn');
+        const fileUploadInput = document.getElementById('file-upload-input');
+        const folderUploadInput = document.getElementById('folder-upload-input');
 
         let editor = null;
         let loadedPath = '';
@@ -51,7 +88,7 @@
                 
                 const statusSubtitle = document.getElementById('files-status-subtitle');
                 if (!pluginOnline) {
-                    statusSubtitle.textContent = 'Server offline. Start your server to view dimension details.';
+                    statusSubtitle.textContent = 'Server offline. Start your server to view files.';
                     statusSubtitle.className = 'text-amber-400 text-sm';
                     fileList.innerHTML = '<div class="px-4 py-10 text-center text-zinc-600 italic">Server offline.</div>';
                     editorHeader.textContent = 'Server offline.';
@@ -69,7 +106,7 @@
                     document.getElementById('editor-offline').classList.add('hidden');
                     if (editor) setTimeout(() => editor.layout(), 10);
 
-                    if (wasOffline && fileList.innerHTML.includes('Server offline.')) {
+                    if (wasOffline && (fileList.children.length === 0 || fileList.innerHTML.includes('Server offline.'))) {
                         hydrate(getRoutePath());
                     }
                 }
@@ -133,9 +170,15 @@
         function updateButtons() {
             const hasFileLoaded = !isDirectory && !!loadedPath;
             const grants = window.BeaconAuth?.grants || {};
+            
             saveBtn.disabled = !hasFileLoaded || !editor || !pluginOnline || !grants.can_edit_files;
             downloadBtn.disabled = !hasFileLoaded || !pluginOnline || !grants.can_download_files;
             deleteBtn.disabled = !hasFileLoaded || !pluginOnline || !grants.can_delete_files;
+            
+            newFileBtn.disabled = !pluginOnline || !grants.can_edit_files;
+            newFolderBtn.disabled = !pluginOnline || !grants.can_edit_files;
+            uploadFileBtn.disabled = !pluginOnline || !grants.can_edit_files;
+            uploadFolderBtn.disabled = !pluginOnline || !grants.can_edit_files;
         }
 
         function renderBreadcrumbs(path) {
@@ -178,26 +221,48 @@
                 rows += '<div class="px-4 py-6 text-sm text-zinc-500 italic">Directory is empty.</div>';
             } else {
                 data.entries.forEach(entry => {
+                    const isDir = entry.is_dir;
                     rows += `
-                        <button class="w-full text-left flex items-center justify-between gap-3 px-4 py-2 hover:bg-zinc-800/70 border-b border-zinc-800 group" data-path="${escapeHtml(entry.path)}" data-isdir="${entry.is_dir}">
+                        <div class="w-full text-left flex items-center justify-between gap-3 px-4 py-2 hover:bg-zinc-800/70 border-b border-zinc-800 group cursor-pointer" onclick="if(!event.target.closest('.delete-btn')) navigate('${escapeHtml(entry.path)}')">
                             <span class="flex items-center gap-2 min-w-0">
-                                ${fileIcon(entry.is_dir)}
-                                <span class="truncate ${entry.is_dir ? 'text-zinc-100' : 'text-zinc-300'}">${escapeHtml(entry.name)}</span>
+                                ${fileIcon(isDir)}
+                                <span class="truncate ${isDir ? 'text-zinc-100' : 'text-zinc-300'}">${escapeHtml(entry.name)}</span>
                             </span>
-                            <span class="text-xs text-zinc-600 group-hover:text-zinc-500">${entry.is_dir ? 'dir' : formatSize(entry.size)}</span>
-                        </button>
+                            <span class="text-xs text-zinc-600 group-hover:hidden">${isDir ? 'dir' : formatSize(entry.size)}</span>
+                            <button class="delete-btn hidden group-hover:block text-red-400 hover:text-red-300 transition-colors p-1" onclick="deleteEntryFromList(event, '${escapeHtml(entry.path)}', ${isDir})" title="Delete">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
                     `;
                 });
             }
 
             fileList.innerHTML = rows;
-            fileList.querySelectorAll('[data-path]').forEach(btn => {
-                btn.onclick = () => navigate(btn.getAttribute('data-path'));
-            });
             fileList.querySelectorAll('[data-nav]').forEach(btn => {
                 btn.onclick = () => navigate(btn.getAttribute('data-nav'));
             });
         }
+
+        window.deleteEntryFromList = async function(event, path, isDir) {
+            event.stopPropagation();
+            if (!pluginOnline) return;
+            const type = isDir ? 'folder' : 'file';
+            const confirmed = await window.beaconConfirm(`Delete ${type} "${path}"? This action cannot be undone.`);
+            if (!confirmed) return;
+            try {
+                await apiFetch(`/api/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+                setStatus(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted.`);
+                if (loadedPath === path) {
+                    const backTo = parentPath(path);
+                    window.history.pushState({}, '', routeForPath(backTo));
+                    await hydrate(backTo);
+                } else {
+                    await hydrate(getRoutePath());
+                }
+            } catch (err) {
+                setStatus(err.message, true);
+            }
+        };
 
         async function loadFile(path) {
             const data = await apiFetch(`/api/files/content?path=${encodeURIComponent(path)}`);
@@ -304,6 +369,99 @@
         saveBtn.onclick = saveCurrentFile;
         downloadBtn.onclick = downloadCurrentFile;
         deleteBtn.onclick = deleteCurrentFile;
+
+        // Toolbar Action Bindings
+        newFileBtn.onclick = async () => {
+            if (!pluginOnline) return;
+            const name = await window.beaconPrompt('Enter new file name:');
+            if (!name) return;
+            
+            // Check if we are currently looking at a file vs. folder
+            const currentDir = isDirectory ? getRoutePath() : parentPath(getRoutePath());
+            const path = currentDir ? `${currentDir}/${name}` : name;
+            
+            try {
+                await apiFetch(`/api/files/content?path=${encodeURIComponent(path)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: '' })
+                });
+                navigate(path);
+            } catch (e) { setStatus(e.message, true); }
+        };
+
+        newFolderBtn.onclick = async () => {
+            if (!pluginOnline) return;
+            const name = await window.beaconPrompt('Enter new folder name:');
+            if (!name) return;
+            
+            // Check if we are currently looking at a file vs. folder
+            const currentDir = isDirectory ? getRoutePath() : parentPath(getRoutePath());
+            const path = currentDir ? `${currentDir}/${name}` : name;
+            
+            try {
+                await apiFetch(`/api/files/dir`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path })
+                });
+                hydrate(getRoutePath());
+                setStatus('Folder created.');
+            } catch (e) { setStatus(e.message, true); }
+        };
+
+        uploadFileBtn.onclick = () => { if (pluginOnline) fileUploadInput.click(); };
+        uploadFolderBtn.onclick = () => { if (pluginOnline) folderUploadInput.click(); };
+
+        async function handleUploads(files) {
+            if (!files.length) return;
+            
+            // Check if we are currently looking at a file vs. folder
+            const currentDir = isDirectory ? getRoutePath() : parentPath(getRoutePath());
+            setStatus(`Uploading ${files.length} file(s)...`);
+            
+            let successCount = 0;
+            for (const file of files) {
+                const relativePath = file.webkitRelativePath || file.name;
+                const path = currentDir ? `${currentDir}/${relativePath}` : relativePath;
+                
+                await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = async (ev) => {
+                        const base64 = ev.target.result.split(',')[1];
+                        try {
+                            await apiFetch(`/api/files/upload`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ path, content: base64 })
+                            });
+                            successCount++;
+                        } catch (err) {
+                            console.error(`Failed to upload ${relativePath}: ${err.message}`);
+                        }
+                        resolve();
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+            
+            hydrate(getRoutePath());
+            if (successCount === files.length) {
+                setStatus(`Successfully uploaded ${successCount} file(s).`);
+            } else {
+                setStatus(`Uploaded ${successCount} of ${files.length} file(s). Check console for errors.`, true);
+            }
+        }
+
+        fileUploadInput.onchange = (e) => {
+            handleUploads(e.target.files);
+            fileUploadInput.value = '';
+        };
+
+        folderUploadInput.onchange = (e) => {
+            handleUploads(e.target.files);
+            folderUploadInput.value = '';
+        };
 
         document.addEventListener('keydown', (event) => {
             const isSaveCombo = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
