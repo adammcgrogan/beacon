@@ -33,6 +33,8 @@ public class FileManagerService {
             case "list" -> fileList(rawPath);
             case "read_text" -> fileReadText(rawPath);
             case "write_text" -> fileWriteText(rawPath, content);
+            case "write_binary" -> fileWriteBinary(rawPath, content);
+            case "create_dir" -> fileCreateDir(rawPath);
             case "delete" -> fileDelete(rawPath);
             case "download" -> fileDownload(rawPath);
             default -> throw new IllegalArgumentException("unsupported action");
@@ -119,12 +121,16 @@ public class FileManagerService {
     }
 
     private JsonObject fileWriteText(String rawPath, String content) throws IOException {
-        Path path = resolveExistingPath(rawPath);
+        Path path = resolvePath(rawPath);
         if (Files.isDirectory(path)) {
             throw new IllegalArgumentException("path is a directory");
         }
         if (path.getFileName().toString().toLowerCase().endsWith(".gz")) {
             throw new IllegalArgumentException("editing .gz files is not supported");
+        }
+
+        if (path.getParent() != null) {
+            Files.createDirectories(path.getParent());
         }
 
         Files.writeString(path, content, StandardCharsets.UTF_8);
@@ -134,13 +140,51 @@ public class FileManagerService {
         return data;
     }
 
-    private JsonObject fileDelete(String rawPath) throws IOException {
-        Path path = resolveExistingPath(rawPath);
+    private JsonObject fileWriteBinary(String rawPath, String base64Content) throws IOException {
+        Path path = resolvePath(rawPath);
         if (Files.isDirectory(path)) {
-            throw new IllegalArgumentException("directory deletion is not supported");
+            throw new IllegalArgumentException("path is a directory");
         }
 
+        if (path.getParent() != null) {
+            Files.createDirectories(path.getParent());
+        }
+
+        byte[] bytes = Base64.getDecoder().decode(base64Content);
+        Files.write(path, bytes);
+
+        JsonObject data = new JsonObject();
+        data.addProperty("ok", true);
+        return data;
+    }
+
+    private JsonObject fileCreateDir(String rawPath) throws IOException {
+        Path path = resolvePath(rawPath);
+        Files.createDirectories(path);
+
+        JsonObject data = new JsonObject();
+        data.addProperty("ok", true);
+        return data;
+    }
+
+    private void deleteRecursively(Path path) throws IOException {
+        if (Files.isDirectory(path)) {
+            try (var stream = Files.list(path)) {
+                for (Path child : stream.toList()) {
+                    deleteRecursively(child);
+                }
+            }
+        }
         Files.delete(path);
+    }
+
+    private JsonObject fileDelete(String rawPath) throws IOException {
+        Path path = resolveExistingPath(rawPath);
+        if (path.equals(serverRoot())) {
+            throw new IllegalArgumentException("cannot delete server root directory");
+        }
+
+        deleteRecursively(path);
 
         JsonObject data = new JsonObject();
         data.addProperty("ok", true);
@@ -169,7 +213,8 @@ public class FileManagerService {
         return root.toPath().toRealPath();
     }
 
-    private Path resolveExistingPath(String rawPath) throws IOException {
+    // Resolves a path, asserting its location within bounds, but without throwing if it doesn't exist
+    private Path resolvePath(String rawPath) throws IOException {
         String relative = rawPath == null ? "" : rawPath.trim();
         while (relative.startsWith("/")) {
             relative = relative.substring(1);
@@ -177,15 +222,21 @@ public class FileManagerService {
 
         Path root = serverRoot();
         Path candidate = relative.isEmpty() ? root : root.resolve(relative).normalize();
+        
         if (!candidate.startsWith(root)) {
             throw new IllegalArgumentException("path escapes root");
         }
+        return candidate;
+    }
+
+    private Path resolveExistingPath(String rawPath) throws IOException {
+        Path candidate = resolvePath(rawPath);
         if (!Files.exists(candidate)) {
             throw new IllegalArgumentException("file or directory not found");
         }
 
         Path real = candidate.toRealPath();
-        if (!real.startsWith(root)) {
+        if (!real.startsWith(serverRoot())) {
             throw new IllegalArgumentException("path escapes root");
         }
         return real;

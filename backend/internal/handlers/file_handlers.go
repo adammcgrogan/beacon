@@ -285,3 +285,66 @@ func filterVisibleEntries(raw json.RawMessage, permissions []string) (map[string
 		"entries": filtered,
 	}, nil
 }
+
+func (h *UIHandler) HandleFilesCreateDir(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+	_, permissions, ok := h.requireAuthForAPI(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	if !CanAccessFilePath(permissions, "edit", req.Path) {
+		writeJSONError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	response, err := h.fileRequest(r.Context(), "create_dir", req.Path, "")
+	if err != nil {
+		writeFileError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (h *UIHandler) HandleFilesUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+	_, permissions, ok := h.requireAuthForAPI(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	if !CanAccessFilePath(permissions, "edit", req.Path) {
+		writeJSONError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	response, err := h.fileRequest(r.Context(), "write_binary", req.Path, req.Content)
+	if err != nil {
+		writeFileError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}

@@ -47,6 +47,10 @@ func main() {
 	http.HandleFunc("/api/files/content", ui.RequireAPIAuth(ui.HandleFilesContent))
 	http.HandleFunc("/api/files", ui.RequireAPIAuth(ui.HandleFilesDelete))
 	http.HandleFunc("/api/files/download", ui.RequireAPIAuth(ui.HandleFilesDownload))
+
+	http.HandleFunc("/api/files/dir", ui.RequireAPIAuth(ui.HandleFilesCreateDir))
+	http.HandleFunc("/api/files/upload", ui.RequireAPIAuth(ui.HandleFilesUpload))
+
 	http.HandleFunc("/api/access/data", ui.RequireAPIAuth(ui.HandleAccessData))
 	http.HandleFunc("/api/access/sessions", ui.RequireAPIAuth(ui.HandleAccessSessionDelete))
 	http.HandleFunc("/api/access/permissions", ui.RequireAPIAuth(ui.HandleAccessPermissionUpdate))
