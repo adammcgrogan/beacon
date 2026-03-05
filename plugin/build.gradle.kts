@@ -43,6 +43,55 @@ tasks.runServer {
     }
 }
 
+val backendProjectDir = projectDir.parentFile.resolve("backend")
+
+data class GoBuildTarget(
+    val goos: String,
+    val goarch: String
+) {
+    val filename: String
+        get() = "beacon-backend-$goos-$goarch" + if (goos == "windows") ".exe" else ""
+
+    val taskNameSuffix: String
+        get() = goos.replaceFirstChar(Char::uppercaseChar) + goarch.replaceFirstChar(Char::uppercaseChar)
+}
+
+val goBuildTargets = listOf(
+    GoBuildTarget("linux", "amd64"),
+    GoBuildTarget("linux", "arm64"),
+    GoBuildTarget("darwin", "amd64"),
+    GoBuildTarget("darwin", "arm64"),
+    GoBuildTarget("windows", "amd64")
+)
+
+val backendBuildOutputDir = layout.buildDirectory.dir("generated/backend-targets")
+
+val buildGoBackendTasks = goBuildTargets.map { target ->
+    val outputFile = backendBuildOutputDir.map { it.file(target.filename) }
+    tasks.register<Exec>("buildGoBackend${target.taskNameSuffix}") {
+        group = "build"
+        description = "Builds Beacon Go backend for ${target.goos}/${target.goarch}."
+        workingDir = backendProjectDir
+        environment("GOOS", target.goos)
+        environment("GOARCH", target.goarch)
+        environment("CGO_ENABLED", "0")
+        commandLine("go", "build", "-o", outputFile.get().asFile.absolutePath, "./cmd/server")
+        outputs.file(outputFile)
+        notCompatibleWithConfigurationCache("Exec task invokes local Go toolchain and is configured dynamically.")
+
+        doFirst {
+            outputFile.get().asFile.parentFile.mkdirs()
+        }
+    }
+}
+
+tasks.processResources {
+    dependsOn(buildGoBackendTasks)
+    from(backendBuildOutputDir) {
+        into("backend")
+    }
+}
+
 publishing {
     publications.create<MavenPublication>("maven") {
         from(components["java"])

@@ -15,3 +15,67 @@ chmod +x gradlew
 [tasks.dev]
 description = "Runs the build, starts the Minecraft server, and starts the Go controller"
 depends = ["backend", "minecraft"]
+
+[tasks.release-plugin]
+description = "Bump plugin patch version, commit, tag, and push"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+current_version="$(sed -nE 's/^version = "([0-9]+\\.[0-9]+\\.[0-9]+)"/\\1/p' plugin/build.gradle.kts | head -n1)"
+if [[ -z "${current_version}" ]]; then
+  echo "Unable to read plugin version from plugin/build.gradle.kts" >&2
+  exit 1
+fi
+
+IFS='.' read -r major minor patch <<< "${current_version}"
+next_version="${major}.${minor}.$((patch + 1))"
+tag="plugin-v${next_version}"
+
+if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+  echo "Tag already exists: ${tag}" >&2
+  exit 1
+fi
+
+perl -i -pe 's/^version = "\\Q'"${current_version}"'\\E"$/version = "'"${next_version}"'"/' plugin/build.gradle.kts
+
+git add plugin/build.gradle.kts
+git commit -m "chore(plugin): release v${next_version}" -- plugin/build.gradle.kts
+git tag "${tag}"
+git push origin HEAD
+git push origin "${tag}"
+
+echo "Released plugin ${next_version} (${tag})"
+"""
+
+[tasks.release-backend]
+description = "Bump backend patch version, commit, tag, and push"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+current_version="$(sed -nE 's/^var version = "([0-9]+\\.[0-9]+\\.[0-9]+)"/\\1/p' backend/cmd/server/main.go | head -n1)"
+if [[ -z "${current_version}" ]]; then
+  echo "Unable to read backend version from backend/cmd/server/main.go" >&2
+  exit 1
+fi
+
+IFS='.' read -r major minor patch <<< "${current_version}"
+next_version="${major}.${minor}.$((patch + 1))"
+tag="backend-v${next_version}"
+
+if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+  echo "Tag already exists: ${tag}" >&2
+  exit 1
+fi
+
+perl -i -pe 's/^var version = "\\Q'"${current_version}"'\\E"$/var version = "'"${next_version}"'"/' backend/cmd/server/main.go
+
+git add backend/cmd/server/main.go
+git commit -m "chore(backend): release v${next_version}" -- backend/cmd/server/main.go
+git tag "${tag}"
+git push origin HEAD
+git push origin "${tag}"
+
+echo "Released backend ${next_version} (${tag})"
+"""

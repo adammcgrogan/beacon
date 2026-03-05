@@ -1,0 +1,62 @@
+name: Plugin Release
+
+on:
+  push:
+    tags:
+      - 'plugin-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+
+      - name: Build plugin
+        run: |
+          cd plugin
+          chmod +x gradlew
+          ./gradlew build
+
+
+      - name: Copy jar
+        run: |
+          mkdir dist
+          cp plugin/build/libs/*.jar dist/
+
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-jar
+          path: dist/*.jar
+
+
+  release:
+
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-jar
+          path: dist
+
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.jar
